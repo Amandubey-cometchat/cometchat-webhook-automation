@@ -1,0 +1,15 @@
+{
+  "name": "cometchat-webhook-automation",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "register": "node scripts/register-webhooks.js",
+    "test:webhooks": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}

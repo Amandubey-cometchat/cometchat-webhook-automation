@@ -1,0 +1,17 @@
+node_modules/
+.env
+receiver/.env
+
+# Playwright output
+test-results/
+playwright-report/
+blob-report/
+
+# Receiver's persisted event log — runtime data, not source
+receiver/data/
+
+# Downloaded cloudflared binary — not source, platform-specific
+.bin/
+
+.DS_Store
+*.log

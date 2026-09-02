@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Webhook Event Inspector</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #171a23;
+    --panel-border: #262b38;
+    --text: #e6e8ef;
+    --muted: #8b91a7;
+    --accent: #6c8cff;
+    --ok: #33c07a;
+    --warn: #e2a33d;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--panel);
+    border-bottom: 1px solid var(--panel-border);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  h1 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0;
+    white-space: nowrap;
+  }
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 0 3px rgba(51,192,122,0.15);
+  }
+  .dot.off { background: #e05252; box-shadow: 0 0 0 3px rgba(224,82,82,0.15); }
+  select, button, input[type="text"] {
+    background: #1f2330;
+    color: var(--text);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.danger:hover { border-color: #e05252; color: #ff8080; }
+  .spacer { flex: 1; }
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  .empty {
+    color: var(--muted);
+    text-align: center;
+    padding: 60px 20px;
+    font-size: 14px;
+  }
+  .event {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .event-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .event-head:hover { background: rgba(108,140,255,0.06); }
+  .badge {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 5px;
+    background: rgba(108,140,255,0.15);
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .time {
+    color: var(--muted);
+    font-size: 12px;
+    font-family: var(--mono);
+  }
+  .summary {
+    color: var(--muted);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+  .chevron {
+    color: var(--muted);
+    font-size: 11px;
+    transition: transform 0.15s;
+  }
+  .event.open .chevron { transform: rotate(90deg); }
+  .event-body {
+    display: none;
+    border-top: 1px solid var(--panel-border);
+  }
+  .event.open .event-body { display: block; }
+  pre {
+    margin: 0;
+    padding: 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-x: auto;
+    color: #c9cee0;
+  }
+  .k { color: #7fb3ff; }
+  .s { color: #9de08a; }
+  .n { color: #e2a33d; }
+  .b { color: #d693ff; }
+  .copy-row {
+    display: flex;
+    justify-content: flex-end;
+    padding: 8px 14px;
+    border-top: 1px solid var(--panel-border);
+  }
+  .copy-row button { font-size: 11px; padding: 4px 8px; }
+  .count {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .tabs {
+    display: flex;
+    gap: 4px;
+  }
+  .tab {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    background: #1f2330;
+    border-color: var(--panel-border);
+    color: var(--text);
+  }
+  .subheader {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 14px 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .stat.active { border-color: var(--accent); }
+  .stat .dot2 { width: 8px; height: 8px; border-radius: 50%; }
+  .stat .n { font-family: var(--mono); font-weight: 700; font-size: 14px; color: var(--text); }
+  .stat .l { color: var(--muted); }
+  .dot2.passed { background: var(--ok); }
+  .dot2.failed { background: #e05252; }
+  .dot2.skipped { background: #8b91a7; }
+  .dot2.expected-fail { background: var(--warn); }
+  .run-meta { color: var(--muted); font-size: 12px; margin-left: auto; }
+  .test-row { display: flex; align-items: center; gap: 10px; }
+  .test-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 5px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .test-badge.passed { background: rgba(51,192,122,0.15); color: var(--ok); }
+  .test-badge.failed { background: rgba(224,82,82,0.15); color: #ff8080; }
+  .test-badge.skipped { background: rgba(139,145,167,0.2); color: var(--muted); }
+  .test-badge.expected-fail { background: rgba(226,163,61,0.18); color: var(--warn); }
+  .test-file { color: var(--muted); font-size: 11px; font-family: var(--mono); white-space: nowrap; }
+  .test-title { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .reason-box {
+    margin: 0;
+    padding: 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-x: auto;
+  }
+  .reason-box.error { color: #ff9d9d; }
+  .reason-box.skip { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Webhook Dashboard</h1>
+  <div class="tabs">
+    <button class="tab active" id="tabEvents">Webhook Events</button>
+    <button class="tab" id="tabResults">Test Results</button>
+  </div>
+  <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">connecting…</span></div>
+  <div class="spacer"></div>
+  <label id="autoRefreshLabel" style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted);">
+    <input type="checkbox" id="autoScroll" checked style="width:auto;" /> auto-refresh
+  </label>
+</header>
+
+<div class="subheader" id="eventsSubheader">
+  <select id="triggerFilter"><option value="">All triggers</option></select>
+  <span class="count" id="count"></span>
+  <div class="spacer"></div>
+  <button id="clearBtn" class="danger">Clear all</button>
+</div>
+
+<div class="subheader" id="resultsSubheader" style="display:none;">
+  <div class="stat active" data-cat="" id="statAll"><span class="n" id="statAllN">0</span><span class="l">total</span></div>
+  <div class="stat" data-cat="passed"><span class="dot2 passed"></span><span class="n" id="statPassedN">0</span><span class="l">passed</span></div>
+  <div class="stat" data-cat="failed"><span class="dot2 failed"></span><span class="n" id="statFailedN">0</span><span class="l">failed</span></div>
+  <div class="stat" data-cat="expected-fail"><span class="dot2 expected-fail"></span><span class="n" id="statExpFailN">0</span><span class="l">known issue</span></div>
+  <div class="stat" data-cat="skipped"><span class="dot2 skipped"></span><span class="n" id="statSkippedN">0</span><span class="l">skipped</span></div>
+  <span class="run-meta" id="runMeta"></span>
+</div>
+
+<main>
+  <div id="list"></div>
+  <div id="resultsList" style="display:none;"></div>
+  <div class="empty" id="emptyState">No events yet. Trigger an action in CometChat and it'll show up here within a couple seconds.</div>
+  <div class="empty" id="resultsEmptyState" style="display:none;">No test run found yet. Run <code>npx playwright test</code> and this will populate.</div>
+</main>
+
+<script>
+  const listEl = document.getElementById('list');
+  const emptyEl = document.getElementById('emptyState');
+  const filterEl = document.getElementById('triggerFilter');
+  const countEl = document.getElementById('count');
+  const dotEl = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const autoScroll = document.getElementById('autoScroll');
+  const clearBtn = document.getElementById('clearBtn');
+
+  const openIds = new Set();
+  let knownTriggers = new Set();
+  let lastRenderKey = '';
+
+  function fmtTime(ms) {
+    const d = new Date(ms);
+    return d.toLocaleTimeString(undefined, { hour12: false }) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function highlightJson(obj) {
+    const json = JSON.stringify(obj, null, 2);
+    const escaped = escapeHtml(json);
+    return escaped.replace(
+      /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(\.\d+)?([eE][+-]?\d+)?)/g,
+      (match) => {
+        let cls = 'n';
+        if (/^"/.test(match)) {
+          cls = /:$/.test(match) ? 'k' : 's';
+        } else if (/true|false|null/.test(match)) {
+          cls = 'b';
+        }
+        return `<span class="${cls}">${match}</span>`;
+      }
+    );
+  }
+
+  function summarize(payload) {
+    try {
+      const keys = Object.keys(payload.data || {});
+      return keys.length ? keys.join(', ') : JSON.stringify(payload).slice(0, 80);
+    } catch {
+      return '';
+    }
+  }
+
+  function eventId(e) {
+    return e.receivedAt + ':' + (e.trigger || '');
+  }
+
+  function render(events) {
+    const filter = filterEl.value;
+    const filtered = filter ? events.filter((e) => e.trigger === filter) : events;
+
+    countEl.textContent = filtered.length + (filter ? ` of ${events.length}` : '') + ' event' + (events.length === 1 ? '' : 's');
+    emptyEl.style.display = filtered.length ? 'none' : 'block';
+
+    const renderKey = filtered.map(eventId).join('|') + '|' + [...openIds].join(',');
+    if (renderKey === lastRenderKey) return;
+    lastRenderKey = renderKey;
+
+    listEl.innerHTML = filtered
+      .slice()
+      .reverse()
+      .map((e) => {
+        const id = eventId(e);
+        const open = openIds.has(id);
+        return `
+        <div class="event ${open ? 'open' : ''}" data-id="${id}">
+          <div class="event-head" onclick="window.__toggle('${id}')">
+            <span class="chevron">▶</span>
+            <span class="badge">${escapeHtml(e.trigger || 'unknown')}</span>
+            <span class="time">${fmtTime(e.receivedAt)}</span>
+            <span class="summary">${escapeHtml(summarize(e.payload))}</span>
+          </div>
+          <div class="event-body">
+            <pre>${highlightJson(e.payload)}</pre>
+            <div class="copy-row">
+              <button onclick='window.__copy(${JSON.stringify(JSON.stringify(e.payload))})'>Copy JSON</button>
+            </div>
+          </div>
+        </div>`;
+      })
+      .join('');
+  }
+
+  window.__toggle = (id) => {
+    if (openIds.has(id)) openIds.delete(id);
+    else openIds.add(id);
+    lastRenderKey = '';
+    poll(true);
+  };
+
+  window.__copy = (json) => {
+    navigator.clipboard.writeText(json).catch(() => {});
+  };
+
+  function updateFilterOptions(events) {
+    const triggers = new Set(events.map((e) => e.trigger).filter(Boolean));
+    let changed = triggers.size !== knownTriggers.size;
+    if (!changed) {
+      for (const t of triggers) if (!knownTriggers.has(t)) { changed = true; break; }
+    }
+    if (!changed) return;
+    knownTriggers = triggers;
+    const current = filterEl.value;
+    const options = ['<option value="">All triggers</option>']
+      .concat([...triggers].sort().map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`));
+    filterEl.innerHTML = options.join('');
+    filterEl.value = current;
+  }
+
+  async function poll(force) {
+    try {
+      const res = await fetch('/webhook/history');
+      const json = await res.json();
+      dotEl.classList.remove('off');
+      statusText.textContent = 'connected';
+      updateFilterOptions(json.events);
+      render(json.events);
+    } catch (err) {
+      dotEl.classList.add('off');
+      statusText.textContent = 'disconnected';
+    }
+  }
+
+  filterEl.addEventListener('change', () => { lastRenderKey = ''; poll(true); });
+
+  clearBtn.addEventListener('click', async () => {
+    if (!confirm('Clear all stored events?')) return;
+    await fetch('/webhook/history', { method: 'DELETE' });
+    openIds.clear();
+    lastRenderKey = '';
+    poll(true);
+  });
+
+  poll();
+  setInterval(() => { if (autoScroll.checked) poll(); }, 1500);
+
+  // ---- Test Results tab ----
+
+  const tabEvents = document.getElementById('tabEvents');
+  const tabResults = document.getElementById('tabResults');
+  const eventsSubheader = document.getElementById('eventsSubheader');
+  const resultsSubheader = document.getElementById('resultsSubheader');
+  const resultsListEl = document.getElementById('resultsList');
+  const resultsEmptyEl = document.getElementById('resultsEmptyState');
+  const runMetaEl = document.getElementById('runMeta');
+
+  const openResultIds = new Set();
+  let resultsCategoryFilter = '';
+  let lastResultsRenderKey = '';
+  let activeTab = 'events';
+
+  function setTab(tab) {
+    activeTab = tab;
+    const onEvents = tab === 'events';
+    tabEvents.classList.toggle('active', onEvents);
+    tabResults.classList.toggle('active', !onEvents);
+    eventsSubheader.style.display = onEvents ? 'flex' : 'none';
+    resultsSubheader.style.display = onEvents ? 'none' : 'flex';
+    listEl.style.display = onEvents ? '' : 'none';
+    resultsListEl.style.display = onEvents ? 'none' : '';
+    emptyEl.style.display = onEvents && !listEl.children.length ? 'block' : 'none';
+    resultsEmptyEl.style.display = !onEvents && !resultsListEl.children.length ? 'block' : 'none';
+    if (!onEvents) pollResults(true);
+  }
+  tabEvents.addEventListener('click', () => setTab('events'));
+  tabResults.addEventListener('click', () => setTab('results'));
+
+  document.querySelectorAll('.stat').forEach((el) => {
+    el.addEventListener('click', () => {
+      resultsCategoryFilter = el.dataset.cat || '';
+      document.querySelectorAll('.stat').forEach((s) => s.classList.toggle('active', s === el));
+      lastResultsRenderKey = '';
+      renderResults(window.__lastResultsData || { tests: [], counts: {} });
+    });
+  });
+
+  function fmtDuration(ms) {
+    if (ms == null) return '';
+    return ms < 1000 ? ms + 'ms' : (ms / 1000).toFixed(1) + 's';
+  }
+
+  function testRowId(t, i) {
+    return t.file + ':' + t.title + ':' + i;
+  }
+
+  function categoryLabel(cat) {
+    return { passed: 'passed', failed: 'failed', skipped: 'skipped', 'expected-fail': 'known issue' }[cat] || cat;
+  }
+
+  function renderResults(data) {
+    window.__lastResultsData = data;
+    const counts = data.counts || {};
+    document.getElementById('statAllN').textContent = data.tests.length;
+    document.getElementById('statPassedN').textContent = counts.passed || 0;
+    document.getElementById('statFailedN').textContent = counts.failed || 0;
+    document.getElementById('statExpFailN').textContent = counts['expected-fail'] || 0;
+    document.getElementById('statSkippedN').textContent = counts.skipped || 0;
+
+    if (data.duration != null) {
+      runMetaEl.textContent = 'last run: ' + (data.duration / 1000).toFixed(1) + 's'
+        + (data.startTime ? ' · ' + new Date(data.startTime).toLocaleTimeString() : '');
+    }
+
+    const filtered = resultsCategoryFilter ? data.tests.filter((t) => t.category === resultsCategoryFilter) : data.tests;
+
+    resultsEmptyEl.style.display = data.available === false ? 'block' : (filtered.length ? 'none' : 'block');
+    if (data.available === false) {
+      resultsEmptyEl.textContent = 'No test run found yet. Run npx playwright test and this will populate.';
+    } else if (!filtered.length) {
+      resultsEmptyEl.textContent = 'No tests in this category.';
+    }
+
+    const renderKey = filtered.map((t, i) => testRowId(t, i) + t.category).join('|') + '|' + [...openResultIds].join(',');
+    if (renderKey === lastResultsRenderKey) return;
+    lastResultsRenderKey = renderKey;
+
+    // Order: failed first (most actionable), then expected-fail, then skipped, then passed.
+    const order = { failed: 0, 'expected-fail': 1, skipped: 2, passed: 3 };
+    const sorted = filtered.slice().sort((a, b) => (order[a.category] ?? 9) - (order[b.category] ?? 9));
+
+    resultsListEl.innerHTML = sorted
+      .map((t, i) => {
+        const id = testRowId(t, i);
+        const open = openResultIds.has(id);
+        const reason = t.error || t.skipReason || t.knownIssueReason;
+        const reasonClass = t.error ? 'error' : 'skip';
+        const canExpand = Boolean(reason);
+        return `
+        <div class="event ${open ? 'open' : ''}" data-id="${id}">
+          <div class="event-head" ${canExpand ? `onclick="window.__toggleResult('${id}')"` : 'style="cursor:default;"'}>
+            ${canExpand ? '<span class="chevron">▶</span>' : '<span class="chevron" style="visibility:hidden;">▶</span>'}
+            <div class="test-row" style="flex:1; min-width:0;">
+              <span class="test-badge ${t.category}">${categoryLabel(t.category)}</span>
+              <span class="test-file">${escapeHtml(t.file)}</span>
+              <span class="test-title">${escapeHtml(t.title)}</span>
+            </div>
+            <span class="time">${fmtDuration(t.duration)}</span>
+          </div>
+          ${canExpand ? `<div class="event-body"><pre class="reason-box ${reasonClass}">${escapeHtml(reason)}</pre></div>` : ''}
+        </div>`;
+      })
+      .join('');
+  }
+
+  window.__toggleResult = (id) => {
+    if (openResultIds.has(id)) openResultIds.delete(id);
+    else openResultIds.add(id);
+    lastResultsRenderKey = '';
+    renderResults(window.__lastResultsData || { tests: [], counts: {} });
+  };
+
+  async function pollResults() {
+    try {
+      const res = await fetch('/test-results');
+      const json = await res.json();
+      dotEl.classList.remove('off');
+      statusText.textContent = 'connected';
+      renderResults(json);
+    } catch (err) {
+      dotEl.classList.add('off');
+      statusText.textContent = 'disconnected';
+    }
+  }
+
+  setInterval(() => { if (autoScroll.checked && activeTab === 'results') pollResults(); }, 1500);
+</script>
+
+</body>
+</html>
