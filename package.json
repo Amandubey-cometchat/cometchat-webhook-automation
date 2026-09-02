@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "register": "node scripts/register-webhooks.js",
-    "test:webhooks": "playwright test"
+    "test:webhooks": "playwright test; code=$?; node scripts/upload-test-results.js; exit $code"
   },
   "devDependencies": {
     "@playwright/test": "^1.47.0"

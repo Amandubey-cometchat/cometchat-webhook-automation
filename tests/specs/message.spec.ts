@@ -9,7 +9,11 @@ test.beforeEach(async () => {
 });
 
 test('message_sent webhook fires when a text message is sent', async () => {
-  const text = `automated test message ${Date.now()}`;
+  // .toString(36) rather than a raw number — a bare 10+ digit run in message
+  // text trips CometChat's built-in Moderation Engine "Contact details
+  // filter" (it pattern-matches digit runs as phone numbers), which silently
+  // fires moderation_engine_blocked instead of message_sent. Verified live.
+  const text = `automated test message ${Date.now().toString(36)}`;
 
   const message = await sendTextMessage({ sender: 'qa-user-1', receiver: 'qa-user-2', receiverType: 'user', text });
 
@@ -36,8 +40,8 @@ test('message_sent webhook fires when a text message is sent', async () => {
 });
 
 test('message_edited webhook fires when a message is edited, with the new text', async () => {
-  const original = await sendTextMessage({ sender: 'qa-user-1', receiver: 'qa-user-2', text: `edit-me ${Date.now()}` });
-  const newText = `edited ${Date.now()}`;
+  const original = await sendTextMessage({ sender: 'qa-user-1', receiver: 'qa-user-2', text: `edit-me ${Date.now().toString(36)}` });
+  const newText = `edited ${Date.now().toString(36)}`;
 
   await editMessage(original.id, newText, 'qa-user-1');
 
@@ -52,7 +56,7 @@ test('message_edited webhook fires when a message is edited, with the new text',
 });
 
 test('message_deleted webhook fires when a message is deleted', async () => {
-  const original = await sendTextMessage({ sender: 'qa-user-1', receiver: 'qa-user-2', text: `delete-me ${Date.now()}` });
+  const original = await sendTextMessage({ sender: 'qa-user-1', receiver: 'qa-user-2', text: `delete-me ${Date.now().toString(36)}` });
 
   await deleteMessage(original.id, 'qa-user-1');
 
@@ -63,7 +67,7 @@ test('message_deleted webhook fires when a message is deleted', async () => {
 });
 
 test('message_reaction_added webhook fires with the correct emoji, message and reactor', async () => {
-  const message = await sendTextMessage({ sender: 'qa-user-1', receiver: 'qa-user-2', text: `react-me ${Date.now()}` });
+  const message = await sendTextMessage({ sender: 'qa-user-1', receiver: 'qa-user-2', text: `react-me ${Date.now().toString(36)}` });
 
   await addReaction(message.id, '👍', 'qa-user-2');
 
@@ -79,7 +83,7 @@ test('message_reaction_added webhook fires with the correct emoji, message and r
 });
 
 test('message_reaction_removed webhook fires with the correct emoji, message and reactor', async () => {
-  const message = await sendTextMessage({ sender: 'qa-user-1', receiver: 'qa-user-2', text: `unreact-me ${Date.now()}` });
+  const message = await sendTextMessage({ sender: 'qa-user-1', receiver: 'qa-user-2', text: `unreact-me ${Date.now().toString(36)}` });
   await addReaction(message.id, '🎉', 'qa-user-2');
   await resetEvents(); // isolate from the reaction_added event above
 
@@ -97,7 +101,7 @@ test('message_reaction_removed webhook fires with the correct emoji, message and
 });
 
 test('user_mentioned webhook fires when a message mentions a user, and message_sent also fires for the same message', async () => {
-  const text = `Hi <@uid:qa-user-2> check this out ${Date.now()}`;
+  const text = `Hi <@uid:qa-user-2> check this out ${Date.now().toString(36)}`;
 
   const message = await sendTextMessage({ sender: 'qa-user-1', receiver: 'qa-user-2', text });
 

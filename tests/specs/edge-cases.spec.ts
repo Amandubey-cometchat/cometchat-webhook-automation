@@ -8,8 +8,30 @@ test.beforeEach(async () => {
   await resetEvents();
 });
 
+// A single character repeated thousands of times reads as spam to
+// CometChat's Moderation Engine and gets silently blocked instead of
+// delivered — verified live (2026-09-02). Words in varied order still test
+// "is a large payload delivered intact" without tripping that heuristic.
+const FILLER_WORDS = [
+  'the', 'quick', 'brown', 'fox', 'jumps', 'over', 'lazy', 'dog', 'while',
+  'testing', 'webhook', 'payload', 'delivery', 'across', 'a', 'large',
+  'message', 'body', 'to', 'confirm', 'nothing', 'gets', 'truncated', 'or',
+  'corrupted', 'along', 'way', 'even', 'when', 'it', 'is', 'quite', 'long',
+];
+function fillerText(length) {
+  let out = '';
+  while (out.length < length) {
+    out += FILLER_WORDS[Math.floor(Math.random() * FILLER_WORDS.length)] + ' ';
+  }
+  return out.slice(0, length);
+}
+
 test('unicode and emoji text round-trips byte-for-byte through the webhook', async () => {
-  const text = `héllo 世界 🚀🔥 مرحبا Здравствуй ${Date.now()}`;
+  // .toString(36) rather than a raw number — a bare 10+ digit run in message
+  // text trips CometChat's built-in Moderation Engine "Contact details
+  // filter" (it pattern-matches digit runs as phone numbers), which silently
+  // fires moderation_engine_blocked instead of message_sent. Verified live.
+  const text = `héllo 世界 🚀🔥 مرحبا Здравствуй ${Date.now().toString(36)}`;
 
   const message = await sendTextMessage({ sender: 'qa-user-1', receiver: 'qa-user-2', text });
 
@@ -19,7 +41,7 @@ test('unicode and emoji text round-trips byte-for-byte through the webhook', asy
 });
 
 test('special/HTML-like characters are preserved exactly, not escaped or stripped', async () => {
-  const text = `<script>alert('x')</script> "quotes" 'apos' \\backslash\\ & ampersand ${Date.now()}`;
+  const text = `<script>alert('x')</script> "quotes" 'apos' \\backslash\\ & ampersand ${Date.now().toString(36)}`;
 
   const message = await sendTextMessage({ sender: 'qa-user-1', receiver: 'qa-user-2', text });
 
@@ -29,7 +51,7 @@ test('special/HTML-like characters are preserved exactly, not escaped or strippe
 });
 
 test('a large but valid message (9000 chars, under the 10KB data cap) is delivered intact', async () => {
-  const text = `${Date.now()}-` + 'x'.repeat(9000);
+  const text = `${Date.now().toString(36)}-` + fillerText(9000);
 
   const message = await sendTextMessage({ sender: 'qa-user-1', receiver: 'qa-user-2', text });
 
@@ -40,7 +62,7 @@ test('a large but valid message (9000 chars, under the 10KB data cap) is deliver
 });
 
 test('an oversized message (70000 chars, over the payload cap) is rejected and fires no webhook', async () => {
-  const text = `${Date.now()}-` + 'x'.repeat(70000);
+  const text = `${Date.now().toString(36)}-` + fillerText(70000);
 
   await expect(sendTextMessage({ sender: 'qa-user-1', receiver: 'qa-user-2', text })).rejects.toThrow(/400/);
 
@@ -48,7 +70,7 @@ test('an oversized message (70000 chars, over the payload cap) is rejected and f
 });
 
 test('rapid consecutive messages each produce their own distinct, correctly-matched webhook', async () => {
-  const stamp = Date.now();
+  const stamp = Date.now().toString(36);
   const texts = [`rapid-1-${stamp}`, `rapid-2-${stamp}`, `rapid-3-${stamp}`];
 
   // Fire all three with no delay between them — this is the scenario most

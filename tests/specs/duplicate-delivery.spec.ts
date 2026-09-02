@@ -15,7 +15,7 @@ test.beforeEach(async () => {
 });
 
 test('message_sent is not delivered more than once for a single message', async () => {
-  const text = `dup-check ${Date.now()}`;
+  const text = `dup-check ${Date.now().toString(36)}`;
 
   const message = await sendTextMessage({ sender: 'qa-user-1', receiver: 'qa-user-2', text });
 
