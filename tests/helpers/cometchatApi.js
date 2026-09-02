@@ -129,6 +129,14 @@ async function getGroup(guid) {
   return apiRequest('GET', `/groups/${guid}`);
 }
 
+// Generates a client-side login credential for `uid`, for tests that need a
+// real connected SDK client (WebSocket) rather than a server-side REST call
+// — e.g. group_member_joined/left, delivery/read receipts, and connection
+// status, none of which have a REST equivalent. See tests/helpers/sdkClient.js.
+async function createAuthToken(uid) {
+  return apiRequest('POST', `/users/${uid}/auth_tokens`);
+}
+
 module.exports = {
   createTestUser,
   sendTextMessage,
@@ -148,4 +156,5 @@ module.exports = {
   banGroupMember,
   unbanGroupMember,
   getGroup,
+  createAuthToken,
 };
