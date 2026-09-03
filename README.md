@@ -137,6 +137,42 @@ filesystem it doesn't share. `scripts/upload-test-results.js` POSTs the
 report to the receiver's `POST /test-results` endpoint instead — this runs
 automatically via `npm run test:webhooks`.
 
+## Multiple environments
+
+This suite can target different CometChat apps — e.g. a staging app and
+several regional production apps — via `env.js`, which loads
+`.env.<APP_ENV>` instead of a single bare `.env`:
+
+```bash
+npx playwright test                                  # APP_ENV defaults to staging-us
+APP_ENV=prod-eu CONFIRM_PROD=yes npx playwright test  # explicit, confirmed
+```
+
+`APP_ENV` must be one of `staging-us`, `prod-us`, `prod-eu`, `prod-in`. Any
+`prod-*` target is refused unless `CONFIRM_PROD=yes` is also set — this
+suite creates/deletes groups, sends messages, and bans/blocks users, so a
+stray or forgotten `APP_ENV` should never silently run against a real
+production app.
+
+**Set up a new environment**:
+1. `cp .env.example .env.<name>` and fill in that app's App ID, Region, and REST API Key
+2. Deploy a **separate, dedicated** Render receiver for it (don't share one
+   across environments — keeps prod and staging fully isolated). Same steps
+   as "Step 1" above, just a new Render Web Service from the same repo.
+3. Fill in that receiver's URL as `WEBHOOK_RECEIVER_URL`/`RECEIVER_QUERY_URL`
+   in the new `.env.<name>` file
+4. Create the two fixed test users this suite expects (`qa-user-1`, `qa-user-2`)
+   on that app — they're never created automatically by the test run itself:
+   ```bash
+   APP_ENV=<name> node -e "
+     const { createTestUser } = require('./tests/helpers/cometchatApi');
+     Promise.all([createTestUser('qa-user-1','qa-user-1'), createTestUser('qa-user-2','qa-user-2')]);
+   "
+   ```
+5. Add a **new, separate** webhook on that app in the Dashboard (Step 2 above)
+   pointing at the new receiver — never repoint an existing webhook that
+   might already drive real business logic on a prod app
+
 ## Known limitations
 
 Not every CometChat webhook trigger can be exercised by REST alone.

@@ -5,7 +5,7 @@
  *
  * Full REST API reference: https://api-explorer.cometchat.com
  */
-require('dotenv').config();
+require('../../env');
 
 const { COMETCHAT_APP_ID, COMETCHAT_REGION, COMETCHAT_REST_API_KEY } = process.env;
 

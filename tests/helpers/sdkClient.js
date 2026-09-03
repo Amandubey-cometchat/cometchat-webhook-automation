@@ -12,6 +12,7 @@
  * mock, not a simulation. Requires an Auth Token (createAuthToken), not the
  * server-side REST API key, per CometChat's client-auth model.
  */
+require('../../env');
 const { chromium } = require('@playwright/test');
 
 const COMETCHAT_SDK_CDN = 'https://unpkg.com/@cometchat/chat-sdk-javascript/CometChat.js';

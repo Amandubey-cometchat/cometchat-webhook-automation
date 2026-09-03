@@ -35,7 +35,7 @@
  * against https://api-explorer.cometchat.com once you have real
  * COMETCHAT_MGMT_KEY/SECRET, before trusting this in CI.
  */
-require('dotenv').config();
+require('../env');
 
 const {
   COMETCHAT_APP_ID,

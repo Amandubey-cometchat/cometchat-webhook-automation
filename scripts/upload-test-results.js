@@ -8,7 +8,7 @@
  * Run automatically after `npm run test:webhooks` (see package.json). Safe
  * to run manually too: `node scripts/upload-test-results.js`.
  */
-require('dotenv').config();
+require('../env');
 const fs = require('fs');
 const path = require('path');
 

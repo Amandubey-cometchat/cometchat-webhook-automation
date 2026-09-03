@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('../../env');
 
 const RECEIVER_QUERY_URL = process.env.RECEIVER_QUERY_URL || 'http://localhost:4000';
 

@@ -1,4 +1,9 @@
 import { defineConfig } from '@playwright/test';
+// Loads .env.<APP_ENV> (default staging-us) and fails fast with a clear
+// message on an unconfirmed prod target. Doing this here — the first thing
+// Playwright loads — means every spec/helper sees a consistent environment
+// with no import-order surprises, and prod is blocked before any test runs.
+require('./env');
 
 export default defineConfig({
   testDir: './tests/specs',
