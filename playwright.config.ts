@@ -1,9 +1,23 @@
 import { defineConfig } from '@playwright/test';
+import fs from 'fs';
 // Loads .env.<APP_ENV> (default staging-us) and fails fast with a clear
 // message on an unconfirmed prod target. Doing this here — the first thing
 // Playwright loads — means every spec/helper sees a consistent environment
 // with no import-order surprises, and prod is blocked before any test runs.
-require('./env');
+const { APP_ENV } = require('./env');
+
+// Stamps which environment is actually producing the results.json this run
+// writes. scripts/generate-coverage-report.js reads this marker rather than
+// its own separately-resolved APP_ENV — a report generated standalone
+// (`npm run coverage`, no APP_ENV set) would otherwise silently mislabel a
+// stale results.json from a *different* environment's last run as whatever
+// APP_ENV happens to default to. Verified live: this is exactly how prod-eu's
+// results briefly got mislabeled "staging-us" during this project's setup.
+fs.mkdirSync('test-results', { recursive: true });
+fs.writeFileSync(
+  'test-results/.run-env.json',
+  JSON.stringify({ APP_ENV, appId: process.env.COMETCHAT_APP_ID, region: process.env.COMETCHAT_REGION, writtenAt: Date.now() })
+);
 
 export default defineConfig({
   testDir: './tests/specs',

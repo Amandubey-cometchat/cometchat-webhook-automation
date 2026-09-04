@@ -43,6 +43,12 @@ if (!fs.existsSync(envFile)) {
 }
 
 dotenv.config({ path: envFile });
-console.log(`[env] ${APP_ENV} — app ${process.env.COMETCHAT_APP_ID} (${process.env.COMETCHAT_REGION})`);
+
+const banner = '='.repeat(52);
+console.log(banner);
+console.log('Webhook Automation');
+console.log(`Environment: ${APP_ENV.toUpperCase()}`);
+console.log(`App: ${process.env.COMETCHAT_APP_ID} (region: ${process.env.COMETCHAT_REGION})`);
+console.log(banner);
 
 module.exports = { APP_ENV };

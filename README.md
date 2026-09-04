@@ -35,7 +35,16 @@ webhook-automation/
       negative.spec.ts          -> rejected actions fire no webhook
       edge-cases.spec.ts        -> unicode, oversized payloads, rapid-fire messages
       sdk-triggers.spec.ts      -> triggers only reachable via a live SDK/WebSocket client
+      aggregate-receipts.spec.ts -> message_delivered_to_all / message_read_by_all (group-only)
       webhook-configuration.spec.ts -> documented skips (needs Management API creds)
+  webhooks/
+    registry.js                -> single source of truth: every CometChat webhook this
+                                   project is responsible for, its automation status, and why
+  reports/
+    webhook-coverage.json      -> generated: per-environment coverage, machine-readable
+    webhook-coverage.md        -> generated: same data, human-readable table
+  env.js                       -> loads .env.<APP_ENV>, prints the environment banner,
+                                   blocks unconfirmed prod runs
   playwright.config.ts
   package.json
   .env.example
@@ -91,23 +100,40 @@ one, configure the webhook by hand:
 
 ```bash
 npm install
-cp .env.example .env      # fill in COMETCHAT_APP_ID, COMETCHAT_REGION,
-                           # COMETCHAT_REST_API_KEY, WEBHOOK_RECEIVER_URL (your
-                           # receiver's /webhook URL), RECEIVER_QUERY_URL (its
-                           # base URL, no path)
-npm run test:webhooks
+cp .env.example .env.staging-us   # fill in COMETCHAT_APP_ID, COMETCHAT_REGION,
+                                   # COMETCHAT_REST_API_KEY, WEBHOOK_RECEIVER_URL (your
+                                   # receiver's /webhook URL), RECEIVER_QUERY_URL (its
+                                   # base URL, no path) — see "Multiple environments" below
+npm run test:staging
 ```
 
-This runs the full suite serially against your real CometChat app (parallel
-runs would race on the receiver's shared event store — see `playwright.config.ts`),
-then uploads the results to the receiver so the dashboard's Test Results tab
-reflects them — see "Receiver hosting" below for why that upload step exists.
+Environment-specific entry points (each loads only that environment's
+`.env.<name>` — see "Multiple environments" below):
+
+```bash
+npm run test:staging      # APP_ENV=staging-us, no confirmation needed
+npm run test:prod:eu      # APP_ENV=prod-eu,  requires the confirmation baked into the script
+npm run test:prod:us      # APP_ENV=prod-us,  same
+npm run test:prod:in      # APP_ENV=prod-in,  same
+```
+
+Every one of these runs the full suite serially against that real CometChat
+app (parallel runs would race on the receiver's shared event store — see
+`playwright.config.ts`), then regenerates `reports/webhook-coverage.{json,md}`
+for that environment (see "Webhook coverage registry & report" below).
+`npm run test:webhooks` additionally uploads results to the receiver so the
+deployed dashboard's Test Results tab reflects them (uses whatever `APP_ENV`
+is already set in your shell, defaulting to staging-us — see "Receiver
+hosting" below for why that upload step exists).
 
 Useful variants:
-- `npx playwright test tests/specs/message.spec.ts` — just one category (run
-  `node scripts/upload-test-results.js` after, if you want the dashboard updated)
-- `npx playwright test --grep group` — just tests matching a name
+- `npm run test:staging -- --grep group` / `npm run test:prod:eu -- --grep message` —
+  just one category (Playwright's own `--grep`, passed through)
+- `npx playwright test tests/specs/message.spec.ts` — just one spec file
+  (loads `APP_ENV` from your shell — export it first, or prefix the command)
 - `npx playwright show-report` — HTML report after a run
+- `npm run coverage` — regenerate `reports/webhook-coverage.*` from the last
+  run's `test-results/results.json` without re-running anything
 
 ## Step 4 — Watch it live
 
@@ -144,15 +170,19 @@ several regional production apps — via `env.js`, which loads
 `.env.<APP_ENV>` instead of a single bare `.env`:
 
 ```bash
-npx playwright test                                  # APP_ENV defaults to staging-us
-APP_ENV=prod-eu CONFIRM_PROD=yes npx playwright test  # explicit, confirmed
+npm run test:staging                                  # APP_ENV=staging-us
+npm run test:prod:eu                                   # APP_ENV=prod-eu, confirmed
+# equivalent, if you need raw playwright flags (e.g. --grep):
+APP_ENV=prod-eu CONFIRM_PROD=yes npx playwright test --grep group
 ```
 
 `APP_ENV` must be one of `staging-us`, `prod-us`, `prod-eu`, `prod-in`. Any
 `prod-*` target is refused unless `CONFIRM_PROD=yes` is also set — this
 suite creates/deletes groups, sends messages, and bans/blocks users, so a
 stray or forgotten `APP_ENV` should never silently run against a real
-production app.
+production app. Every run prints a banner (`Environment: PROD-EU`, app ID,
+region) before a single test executes, so which environment a run targeted
+is never ambiguous in the log.
 
 **Set up a new environment**:
 1. `cp .env.example .env.<name>` and fill in that app's App ID, Region, and REST API Key
@@ -173,35 +203,81 @@ production app.
    pointing at the new receiver — never repoint an existing webhook that
    might already drive real business logic on a prod app
 
+## Webhook coverage registry & report
+
+`webhooks/registry.js` is the single source of truth for every CometChat
+webhook this project is responsible for — 51 across GROUP, MESSAGE, CALL &
+MEETING, CAMPAIGN, USER, and MODERATION. Each entry carries its category,
+what actually triggers it, the automation method (REST/SDK/none), the real
+payload fields a passing test asserts on, and a status:
+
+- **AUTOMATED** — a real test exists and asserts on a real, live-verified payload
+- **NOT_IMPLEMENTED** — believed achievable with what's already available, just not built yet (with a reason)
+- **BLOCKED** — genuinely can't be triggered with what's currently available — missing product module/credentials, or a Dashboard-only human action with no API equivalent (with a reason)
+
+`scripts/generate-coverage-report.js` (wired into every `test:*` script, or
+run standalone as `npm run coverage`) cross-references the registry against
+the most recent local Playwright run for whichever `APP_ENV` it targeted,
+prints a console report, and writes/updates:
+- `reports/webhook-coverage.json` — accumulates one slice per environment, so running staging today and prod-eu tomorrow builds up a combined multi-environment picture rather than overwriting each other
+- `reports/webhook-coverage.md` — the same data as a table
+
+**Current coverage (last run, prod-eu, 2026-09-04): 24 AUTOMATED (all pass), 2 NOT_IMPLEMENTED, 25 BLOCKED, 51 total.**
+
+**Adding a new webhook**: add one entry to the relevant array in
+`webhooks/registry.js` (`id`, `trigger`, `expectedEvent`, `automationMethod`,
+`expectedPayloadKeys`, and either `status: 'AUTOMATED'` with `specFile`/
+`testTitleMatch` pointing at a real test, or `status: 'BLOCKED'`/
+`'NOT_IMPLEMENTED'` with a `reason`). Nothing else needs to change — the
+report picks it up automatically.
+
 ## Known limitations
 
 Not every CometChat webhook trigger can be exercised by REST alone.
-`group_member_joined`/`left`, delivery/read receipts, and connection status
-only fire from a real, connected SDK client (WebSocket) — `sdk-triggers.spec.ts`
-covers these for real by driving the actual CometChat JS SDK inside a
+`group_member_joined`/`left`, delivery/read receipts, connection status, and
+the group-only aggregate receipts (`message_delivered_to_all`/
+`message_read_by_all`) only fire from a real, connected SDK client
+(WebSocket) — `sdk-triggers.spec.ts` and `aggregate-receipts.spec.ts` cover
+these for real by driving the actual CometChat JS SDK inside a
 Playwright-controlled browser (`tests/helpers/sdkClient.js`), logged in via a
 server-generated Auth Token. Not a mock — a real client session.
 
-What's still genuinely out of reach, documented as explicit, reasoned test
-skips (not silently omitted) so the gap stays visible in every run:
+What's still genuinely out of reach, documented as explicit, reasoned gaps
+(not silently omitted) so they stay visible — see `webhooks/registry.js` for
+the authoritative, per-webhook version of this:
 
-| Trigger(s) | Why it's blocked | Spec file |
+| Trigger(s) | Why it's blocked | Where |
 | --- | --- | --- |
-| Webhook create/update/enable/disable/delete, add/remove trigger | Needs a Multi-Tenancy Management API key (`COMETCHAT_MGMT_KEY`/`SECRET`) from CometChat Sales — the per-app REST key 404s against `apimgmt.cometchat.io` | `webhook-configuration.spec.ts` |
-| Call & Meeting events (9), Campaign/Notification events (10), Moderation events | Different product surface — needs the Calls SDK, Campaigns module, or Moderation rules configured, none of which exist in this project | not attempted |
+| Webhook create/update/enable/disable/delete, add/remove trigger | Needs a Multi-Tenancy Management API key (`COMETCHAT_MGMT_KEY`/`SECRET`) from CometChat Sales — the per-app REST key 404s against `apimgmt.cometchat.io` | `webhook-configuration.spec.ts` (not part of the 51-webhook registry — this is CRUD on webhook *configuration*, not a webhook event itself) |
+| Call & Meeting events (14), Campaign/Notification events (10) | This project has no Calls SDK or Campaigns module integration on any environment, and no confirmation those add-ons are even enabled on any of the 4 apps. Building tests against a mocked/simulated session would violate "never fake a PASS" | `webhooks/registry.js` (category `CALL & MEETING`, `CAMPAIGN`) |
+| `moderation_engine_blocked`, `moderation_engine_approved` | See "Moderation" below — the trigger condition this project previously relied on no longer reproduces; most likely the Moderation webhook trigger category just isn't checked in the Dashboard, same pattern found for Group triggers | `webhooks/registry.js` (category `MODERATION`) |
+| `moderation_manual_approved` | Dashboard-only human action (an admin manually approving flagged content) — no REST/SDK equivalent exists | `webhooks/registry.js` (category `MODERATION`) |
 
 ## CometChat's built-in Moderation Engine
 
 If your app has Moderation enabled (Dashboard → your app → Moderation), be
 aware it can silently block test messages before any `message_sent` webhook
-fires — observed live: a raw 10+ digit timestamp embedded in message text
-gets pattern-matched as a phone number ("Contact details filter"), and a
-single character repeated thousands of times reads as spam. This suite avoids
-both (see `Date.now().toString(36)` and the `fillerText()` helper in
-`edge-cases.spec.ts`), but flood/rate-style rules can still produce
-inconsistent false positives on otherwise-safe traffic under rapid, repeated
-test runs. For a pure webhook-QA app, disabling Moderation entirely is the
-simplest way to avoid this class of flakiness.
+fires — observed live (pre-2026-09-03, prod-eu): a raw 10+ digit timestamp
+embedded in message text got pattern-matched as a phone number ("Contact
+details filter"), and a single character repeated thousands of times read as
+spam. This suite avoids both (see `Date.now().toString(36)` and the
+`fillerText()` helper in `edge-cases.spec.ts`), but flood/rate-style rules
+can still produce inconsistent false positives on otherwise-safe traffic
+under rapid, repeated test runs. For a pure webhook-QA app, disabling
+Moderation entirely is the simplest way to avoid this class of flakiness.
+
+**Update, 2026-09-04**: re-probed live against prod-eu with the same
+phone-pattern text that previously triggered a block — it now sends cleanly
+as `message_sent`, not `moderation_engine_blocked`. The message's own
+metadata shows a moderation extension did run
+(`data.message.data.metadata['@injected'].extensions['human-moderation'].success: true`),
+but no `moderation_engine_blocked`/`moderation_engine_approved` **webhook**
+fired either way. Most likely explanation, based on this project's prior
+experience with Group triggers (a category can show "on" while its
+individual trigger checkboxes are unchecked): the Moderation trigger
+category needs to be explicitly enabled in the webhook's trigger
+configuration in the Dashboard. Needs a Dashboard check — see
+`webhooks/registry.js`'s `MODERATION` entries for the full reasoning.
 
 ## `scripts/register-webhooks.js`
 
