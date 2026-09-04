@@ -124,4 +124,68 @@ export const MESSAGE_REGISTRY: WebhookRegistryEntry[] = [
     specFile: 'src/tests/message/message-read-by-all.spec.ts',
     testTitleMatch: 'message_read_by_all webhook fires once every group member has read the message',
   },
+  {
+    id: 'message_pinned',
+    category: 'MESSAGE',
+    environments: ALL_ENVS,
+    trigger: 'Pin a message (requires the Pin Message extension)',
+    expectedEvent: 'message_pinned',
+    automationMethod: 'REST',
+    expectedPayloadKeys: [],
+    status: 'NOT_IMPLEMENTED',
+    specFile: 'src/tests/message/message-gaps.spec.ts',
+    testTitleMatch: 'message_pinned (documented gap)',
+    reason:
+      'Live-probed 2026-09-04 against prod-eu: "Pin Message" exists as a catalog extension ' +
+      '(GET /extensions/pin-message returns real metadata), but GET /extensions returns [] — the extension ' +
+      "is NOT currently enabled on this app. Two guessed action-endpoint paths (POST /extensions/pin-message, " +
+      'POST /v1/pin) both 404 with ERR_API_NOT_FOUND, so the real pin/unpin endpoint is unconfirmed — CometChat\'s ' +
+      "public docs only show it called via the JS SDK's CometChat.callExtension('pin-message', 'POST', 'v1/pin', ...), " +
+      "not a documented flat REST path. Also not listed in CometChat's own webhook trigger documentation at all. " +
+      'Needs: (1) Pin Message enabled in Dashboard -> Chat & Messaging -> Features on a target app, (2) the real ' +
+      'REST/SDK call path confirmed (not guessed), (3) confirmation this actually fires a message_pinned webhook.',
+  },
+  {
+    id: 'message_unpinned',
+    category: 'MESSAGE',
+    environments: ALL_ENVS,
+    trigger: 'Unpin a message (requires the Pin Message extension)',
+    expectedEvent: 'message_unpinned',
+    automationMethod: 'REST',
+    expectedPayloadKeys: [],
+    status: 'NOT_IMPLEMENTED',
+    specFile: 'src/tests/message/message-gaps.spec.ts',
+    testTitleMatch: 'message_unpinned (documented gap)',
+    reason: 'Same root cause as message_pinned above.',
+  },
+  {
+    id: 'conversation_pinned',
+    category: 'MESSAGE',
+    environments: ALL_ENVS,
+    trigger: 'Pin a conversation',
+    expectedEvent: 'conversation_pinned',
+    automationMethod: 'REST',
+    expectedPayloadKeys: [],
+    status: 'NOT_IMPLEMENTED',
+    specFile: 'src/tests/message/message-gaps.spec.ts',
+    testTitleMatch: 'conversation_pinned (documented gap)',
+    reason:
+      'Searched CometChat\'s public docs and extension catalog 2026-09-04 — zero trace of this trigger or any ' +
+      'REST/SDK endpoint for pinning a conversation (distinct from pinning a message). Not in the webhook events ' +
+      'documentation, not a discoverable extension. Needs the exact trigger mechanism confirmed — likely only ' +
+      "visible in the Dashboard's own webhook trigger checkboxes, which may be ahead of the public docs.",
+  },
+  {
+    id: 'conversation_unpinned',
+    category: 'MESSAGE',
+    environments: ALL_ENVS,
+    trigger: 'Unpin a conversation',
+    expectedEvent: 'conversation_unpinned',
+    automationMethod: 'REST',
+    expectedPayloadKeys: [],
+    status: 'NOT_IMPLEMENTED',
+    specFile: 'src/tests/message/message-gaps.spec.ts',
+    testTitleMatch: 'conversation_unpinned (documented gap)',
+    reason: 'Same root cause as conversation_pinned above.',
+  },
 ];
