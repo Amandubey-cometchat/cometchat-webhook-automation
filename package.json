@@ -3,16 +3,22 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "register": "node scripts/register-webhooks.js",
-    "test:webhooks": "playwright test; code=$?; node scripts/upload-test-results.js; node scripts/generate-coverage-report.js; exit $code",
-    "test:staging": "APP_ENV=staging-us bash -c 'playwright test; code=$?; node scripts/generate-coverage-report.js; exit $code'",
-    "test:prod:eu": "APP_ENV=prod-eu CONFIRM_PROD=yes bash -c 'playwright test; code=$?; node scripts/generate-coverage-report.js; exit $code'",
-    "test:prod:us": "APP_ENV=prod-us CONFIRM_PROD=yes bash -c 'playwright test; code=$?; node scripts/generate-coverage-report.js; exit $code'",
-    "test:prod:in": "APP_ENV=prod-in CONFIRM_PROD=yes bash -c 'playwright test; code=$?; node scripts/generate-coverage-report.js; exit $code'",
-    "coverage": "node scripts/generate-coverage-report.js"
+    "setup": "tsx scripts/setup.ts",
+    "cleanup": "tsx scripts/cleanup.ts",
+    "register": "tsx scripts/register-webhooks.ts",
+    "test:webhooks": "playwright test; code=$?; tsx scripts/upload-test-results.ts; tsx scripts/generate-coverage.ts; exit $code",
+    "test:staging": "APP_ENV=staging-us bash -c 'playwright test; code=$?; tsx scripts/generate-coverage.ts; exit $code'",
+    "test:prod:eu": "APP_ENV=prod-eu CONFIRM_PROD=yes bash -c 'playwright test; code=$?; tsx scripts/generate-coverage.ts; exit $code'",
+    "test:prod:us": "APP_ENV=prod-us CONFIRM_PROD=yes bash -c 'playwright test; code=$?; tsx scripts/generate-coverage.ts; exit $code'",
+    "test:prod:in": "APP_ENV=prod-in CONFIRM_PROD=yes bash -c 'playwright test; code=$?; tsx scripts/generate-coverage.ts; exit $code'",
+    "coverage": "tsx scripts/generate-coverage.ts",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@playwright/test": "^1.47.0"
+    "@playwright/test": "^1.47.0",
+    "@types/node": "^26.4.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
   },
   "dependencies": {
     "dotenv": "^16.4.5"

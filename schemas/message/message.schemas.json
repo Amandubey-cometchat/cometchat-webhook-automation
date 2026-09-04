@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "Mirrors the live-verified assertions in src/tests/message/*.spec.ts and src/validators/message.validator.ts. Dynamic fields (timestamps, appId/region) intentionally not required.",
+  "$defs": {
+    "message_sent": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "const": "message_sent" },
+        "data": {
+          "type": "object",
+          "required": ["message"],
+          "properties": {
+            "message": {
+              "type": "object",
+              "required": ["id", "sender", "receiver", "receiverType", "category", "type", "data"],
+              "properties": {
+                "id": { "type": "string" },
+                "sender": { "type": "string" },
+                "receiver": { "type": "string" },
+                "receiverType": { "type": "string", "enum": ["user", "group"] },
+                "category": { "const": "message" },
+                "type": { "const": "text" },
+                "data": { "type": "object", "required": ["text"], "properties": { "text": { "type": "string" } } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "message_edited": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": { "trigger": { "const": "message_edited" }, "data": { "type": "object", "required": ["message"] } }
+    },
+    "message_deleted": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": { "trigger": { "const": "message_deleted" }, "data": { "type": "object", "required": ["message"] } }
+    },
+    "message_reaction_added": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "const": "message_reaction_added" },
+        "data": {
+          "type": "object",
+          "required": ["reaction"],
+          "properties": { "reaction": { "type": "object", "required": ["messageId", "reaction", "reactedBy"] } }
+        }
+      }
+    },
+    "message_reaction_removed": { "$ref": "#/$defs/message_reaction_added" },
+    "user_mentioned": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "const": "user_mentioned" },
+        "data": { "type": "object", "required": ["message"], "properties": { "message": { "type": "object", "required": ["id", "data"] } } }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "enum": ["message_delivery_receipt", "message_read_receipt"] },
+        "data": {
+          "type": "object",
+          "required": ["receiver", "receiverType", "sender", "messageSender", "body"],
+          "properties": { "body": { "type": "object", "required": ["action", "messageId", "user"] } }
+        }
+      }
+    },
+    "aggregate_receipt": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "enum": ["message_delivered_to_all", "message_read_by_all"] },
+        "data": {
+          "type": "object",
+          "required": ["receiver", "receiverType", "messageSender", "body"],
+          "properties": {
+            "receiverType": { "const": "group" },
+            "body": { "type": "object", "required": ["action", "messageId"] }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "Required fields only cover what every live-captured payload for that trigger has consistently had (see src/registry/group.registry.ts and src/tests/group/*.spec.ts for the live-verified assertions this mirrors). Dynamic/environment-specific fields (timestamps, appId/region) are intentionally NOT required here — see README 'Adding a new webhook'.",
+  "$defs": {
+    "group_created": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "const": "group_created" },
+        "data": {
+          "type": "object",
+          "required": ["group"],
+          "properties": {
+            "group": {
+              "type": "object",
+              "required": ["guid", "name", "type", "owner"],
+              "properties": {
+                "guid": { "type": "string" },
+                "name": { "type": "string" },
+                "type": { "type": "string", "enum": ["public", "private", "password"] },
+                "owner": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "group_updated": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "const": "group_updated" },
+        "data": { "type": "object", "required": ["group"], "properties": { "group": { "type": "object", "required": ["guid"] } } }
+      }
+    },
+    "group_deleted": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "const": "group_deleted" },
+        "data": { "type": "object", "required": ["group"], "properties": { "group": { "type": "object", "required": ["guid"] } } }
+      }
+    },
+    "group_member_added": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "const": "group_member_added" },
+        "data": {
+          "type": "object",
+          "required": ["group", "members", "by"],
+          "properties": { "group": { "type": "object", "required": ["guid"] }, "members": { "type": "object" }, "by": { "type": "object", "required": ["uid"] } }
+        }
+      }
+    },
+    "group_member_kicked": { "$ref": "#/$defs/group_member_added_shape" },
+    "group_member_banned": { "$ref": "#/$defs/group_member_added_shape" },
+    "group_member_unbanned": { "$ref": "#/$defs/group_member_added_shape" },
+    "group_member_added_shape": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "data": {
+          "type": "object",
+          "required": ["group", "members", "by"],
+          "properties": { "group": { "type": "object", "required": ["guid"] }, "members": { "type": "object" }, "by": { "type": "object", "required": ["uid"] } }
+        }
+      }
+    },
+    "group_member_scope_changed": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "const": "group_member_scope_changed" },
+        "data": { "type": "object", "required": ["group", "members"], "properties": { "group": { "type": "object", "required": ["guid"] } } }
+      }
+    },
+    "group_owner_transferred": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "const": "group_owner_transferred" },
+        "data": {
+          "type": "object",
+          "required": ["group"],
+          "properties": { "group": { "type": "object", "required": ["guid", "owner", "oldOwner"] } }
+        }
+      }
+    },
+    "group_member_joined": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "const": "group_member_joined" },
+        "data": { "type": "object", "required": ["group", "members"], "properties": { "group": { "type": "object", "required": ["guid", "owner"] } } }
+      }
+    },
+    "group_member_left": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "const": "group_member_left" },
+        "data": { "type": "object", "required": ["group", "members"], "properties": { "group": { "type": "object", "required": ["guid"] } } }
+      }
+    }
+  }
+}

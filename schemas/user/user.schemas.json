@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "Mirrors the live-verified assertions in src/tests/user/*.spec.ts and src/validators/user.validator.ts.",
+  "$defs": {
+    "user_blocked": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "const": "user_blocked" },
+        "data": { "type": "object", "required": ["by", "users"], "properties": { "by": { "type": "object", "required": ["uid"] } } }
+      }
+    },
+    "user_unblocked": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "const": "user_unblocked" },
+        "data": { "type": "object", "required": ["by", "users"], "properties": { "by": { "type": "object", "required": ["uid"] } } }
+      }
+    },
+    "user_connection_status_changed": {
+      "type": "object",
+      "required": ["trigger", "data"],
+      "properties": {
+        "trigger": { "const": "user_connection_status_changed" },
+        "data": {
+          "type": "object",
+          "required": ["status", "user", "currentConnection"],
+          "properties": {
+            "status": { "type": "string", "enum": ["online", "offline"] },
+            "user": { "type": "object", "required": ["uid"] },
+            "currentConnection": { "type": "object", "required": ["action"] }
+          }
+        }
+      }
+    }
+  }
+}
