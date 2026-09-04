@@ -23,6 +23,10 @@ fs.writeFileSync(path.join(jsonReportDir, '.run-env.json'), JSON.stringify({ APP
 export default defineConfig({
   testDir: './src/tests',
   timeout: 30000,
+  // Per-test failure artifacts (error-context.md, traces, screenshots) —
+  // Playwright's default is a bare top-level test-results/, which would sit
+  // outside the reports/ tree everything else in this project writes to.
+  outputDir: './reports/test-artifacts',
   // Tests share one external, stateful receiver (a single in-memory event
   // store keyed by nothing but trigger name) and trigger real side effects
   // against one shared CometChat app — running them in parallel lets one
