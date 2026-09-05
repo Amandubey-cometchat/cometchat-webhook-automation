@@ -94,6 +94,23 @@ export async function launchSdkClient(uid: string, authToken: string): Promise<S
       await page.evaluate(() => CometChat.logout());
     },
     async close() {
+      // Best-effort graceful logout before killing the browser — without
+      // this, the WebSocket connection dies abruptly instead of closing
+      // cleanly, leaving a "zombie" session CometChat doesn't immediately
+      // register as disconnected. Verified live (prod-in, 2026-09-05): this
+      // was making user_connection_status_changed's aggregate `data.status`
+      // report "online" (another lingering session still counted as active)
+      // even though the *current* connection's own action was genuinely
+      // "disconnected" — a real bug in every SDK-driven test's cleanup, not
+      // a CometChat quirk. Wrapped in try/catch since a test that already
+      // called disconnect()/logout() itself would otherwise throw here.
+      try {
+        // @ts-ignore
+        await page.evaluate(() => CometChat.logout());
+      } catch {
+        // already logged out, or the page/session is in a state where this
+        // no longer matters — either way, still close the browser below.
+      }
       await browser.close();
     },
   };
