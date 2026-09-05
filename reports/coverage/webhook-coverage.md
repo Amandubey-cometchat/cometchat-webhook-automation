@@ -1,6 +1,6 @@
 # CometChat Webhook Coverage Matrix
 
-_Generated 2026-09-04T17:41:44.302Z from `src/registry/webhook.registry.ts`, cross-referenced with the latest local test run per environment._
+_Generated 2026-09-05T07:57:49.529Z from `src/registry/webhook.registry.ts`, cross-referenced with the latest local test run per environment._
 
 | Category | Webhook | Method | PROD-EU | PROD-US | PROD-IN |
 |---|---|---|---|---|---|

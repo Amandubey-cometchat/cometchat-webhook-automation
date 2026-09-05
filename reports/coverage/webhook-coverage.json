@@ -2,7 +2,7 @@
   "environments": {
     "prod-eu": {
       "environment": "prod-eu",
-      "generatedAt": "2026-09-04T17:41:44.299Z",
+      "generatedAt": "2026-09-05T07:57:49.525Z",
       "counts": {
         "Total": 56,
         "PASSED": 24,
