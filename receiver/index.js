@@ -135,8 +135,16 @@ function flattenSpecs(suite, fileTitle, out) {
     const expectedFailure = test.expectedStatus === 'failed';
 
     let category;
-    if (result.status === 'skipped') category = 'skipped';
-    else if (!spec.ok) category = 'failed'; // unexpected — spec.ok is false only for genuine regressions
+    if (result.status === 'skipped') {
+      // Registry-driven "documented gap" tests (webhook-configuration,
+      // moderation/calls/meetings/campaign gap files) prefix their skip
+      // reason with [BLOCKED] or [NOT_IMPLEMENTED] — a permanent, known
+      // limitation (missing credentials/SDK integration), not an ordinary
+      // ad hoc skip. Split into its own dashboard bucket so it doesn't
+      // clutter the general "skipped" list with the same 8-30 rows every run.
+      const reason = skipAnnotation ? skipAnnotation.description || '' : '';
+      category = /^\[(BLOCKED|NOT_IMPLEMENTED)\]/.test(reason) ? 'blocked' : 'skipped';
+    } else if (!spec.ok) category = 'failed'; // unexpected — spec.ok is false only for genuine regressions
     else if (expectedFailure && result.status === 'failed') category = 'expected-fail';
     else category = 'passed';
 

@@ -265,6 +265,7 @@
   .dot2.failed { background: #e05252; }
   .dot2.skipped { background: #8b91a7; }
   .dot2.expected-fail { background: var(--warn); }
+  .dot2.blocked { background: #7a5cff; }
   .run-meta { color: var(--muted); font-size: 12px; margin-left: auto; }
   .test-row { display: flex; align-items: center; gap: 10px; }
   .test-badge {
@@ -280,6 +281,7 @@
   .test-badge.failed { background: rgba(224,82,82,0.15); color: #ff8080; }
   .test-badge.skipped { background: rgba(139,145,167,0.2); color: var(--muted); }
   .test-badge.expected-fail { background: rgba(226,163,61,0.18); color: var(--warn); }
+  .test-badge.blocked { background: rgba(122,92,255,0.18); color: #a794ff; }
   .test-file { color: var(--muted); font-size: 11px; font-family: var(--mono); white-space: nowrap; }
   .test-title { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .reason-box {
@@ -327,6 +329,7 @@
       <div class="stat" data-cat="failed"><span class="dot2 failed"></span><span class="n" id="statFailedN">0</span><span class="l">failed</span></div>
       <div class="stat" data-cat="expected-fail"><span class="dot2 expected-fail"></span><span class="n" id="statExpFailN">0</span><span class="l">known issue</span></div>
       <div class="stat" data-cat="skipped"><span class="dot2 skipped"></span><span class="n" id="statSkippedN">0</span><span class="l">skipped</span></div>
+      <div class="stat" data-cat="blocked"><span class="dot2 blocked"></span><span class="n" id="statBlockedN">0</span><span class="l">blocked</span></div>
       <span class="run-meta" id="runMeta"></span>
     </div>
 
@@ -680,7 +683,7 @@
   }
 
   function categoryLabel(cat) {
-    return { passed: 'passed', failed: 'failed', skipped: 'skipped', 'expected-fail': 'known issue' }[cat] || cat;
+    return { passed: 'passed', failed: 'failed', skipped: 'skipped', 'expected-fail': 'known issue', blocked: 'blocked' }[cat] || cat;
   }
 
   function renderResults(data) {
@@ -691,6 +694,7 @@
     document.getElementById('statFailedN').textContent = counts.failed || 0;
     document.getElementById('statExpFailN').textContent = counts['expected-fail'] || 0;
     document.getElementById('statSkippedN').textContent = counts.skipped || 0;
+    document.getElementById('statBlockedN').textContent = counts.blocked || 0;
 
     if (data.duration != null) {
       runMetaEl.textContent = 'last run: ' + (data.duration / 1000).toFixed(1) + 's'
@@ -714,8 +718,10 @@
     if (renderKey === lastResultsRenderKey) return;
     lastResultsRenderKey = renderKey;
 
-    // Order: failed first (most actionable), then expected-fail, then skipped, then passed.
-    const order = { failed: 0, 'expected-fail': 1, skipped: 2, passed: 3 };
+    // Order: failed first (most actionable), then expected-fail, then
+    // ordinary skips, then blocked (permanent, known, least actionable),
+    // then passed.
+    const order = { failed: 0, 'expected-fail': 1, skipped: 2, blocked: 3, passed: 4 };
     const sorted = filtered.slice().sort((a, b) => (order[a.category] ?? 9) - (order[b.category] ?? 9));
 
     resultsListEl.innerHTML = sorted

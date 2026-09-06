@@ -17,8 +17,13 @@ import { test } from '@playwright/test';
 // form actually attaches the reason string to the JSON reporter output —
 // the declarative form silently drops a 3rd argument. Verified live.
 
+// [BLOCKED] prefix matches the same convention the registry-driven gap
+// files use (moderation.spec.ts, calls.spec.ts, etc.) — the receiver's
+// dashboard parses this to show these under a separate "Blocked" bucket
+// instead of lumping them in with ordinary skips. See receiver/index.js's
+// flattenSpecs().
 const REASON =
-  'Blocked: requires CometChat Multi-Tenancy Management API access (separate key+secret from Sales), not available with the per-app COMETCHAT_REST_API_KEY configured for this project.';
+  '[BLOCKED] Requires CometChat Multi-Tenancy Management API access (separate key+secret from Sales), not available with the per-app COMETCHAT_REST_API_KEY configured for this project.';
 
 test.describe('Webhook configuration (via API)', () => {
   test('create a new webhook via API', () => { test.skip(true, REASON); });
