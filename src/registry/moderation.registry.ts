@@ -20,9 +20,14 @@ export const MODERATION_REGISTRY: WebhookRegistryEntry[] = [
       'pattern this project previously observed CometChat block) now sends cleanly as message_sent, not ' +
       'moderation_engine_blocked. The message metadata does show a "human-moderation" extension ran ' +
       '(metadata.@injected.extensions.human-moderation.success = true), but no moderation webhook fired at ' +
-      'all. Most likely, based on this project\'s prior experience with Group triggers (a category can show ' +
-      '"on" while individual trigger checkboxes are unchecked): the Moderation trigger category simply isn\'t ' +
-      'enabled in the webhook\'s trigger configuration. Needs a Dashboard check.',
+      'all. Re-probed 2026-09-05 (new prod-eu app) with profanity/violence words ("kill", "fuck") instead of a ' +
+      'phone pattern: both sent cleanly as message_sent too, and this time the human-moderation extension key ' +
+      "was absent from metadata entirely (only link-preview ran) — meaning it didn't even attempt to process " +
+      'this content, unlike the phone-pattern case. Together this suggests specific moderation rules are ' +
+      'individually toggled (same per-trigger-checkbox pattern as Group triggers) rather than one on/off switch, ' +
+      'and profanity detection specifically may not be an enabled rule on this app at all. Needs a Dashboard ' +
+      'check: Moderation -> which specific rules are enabled, plus whether the Moderation trigger category is ' +
+      'checked in the webhook config.',
   },
   {
     id: 'moderation_engine_approved',
