@@ -1,6 +1,6 @@
 # CometChat Webhook Coverage Matrix
 
-_Generated 2026-09-05T07:57:49.529Z from `src/registry/webhook.registry.ts`, cross-referenced with the latest local test run per environment._
+_Generated 2026-09-06T16:03:10.047Z from `src/registry/webhook.registry.ts`, cross-referenced with the latest local test run per environment._
 
 | Category | Webhook | Method | PROD-EU | PROD-US | PROD-IN |
 |---|---|---|---|---|---|
@@ -57,14 +57,14 @@ _Generated 2026-09-05T07:57:49.529Z from `src/registry/webhook.registry.ts`, cro
 | USER | user_blocked | REST | PASSED | PASSED | FAILED |
 | USER | user_unblocked | REST | PASSED | PASSED | FAILED |
 | USER | user_connection_status_changed | SDK | PASSED | PASSED | FAILED |
-| MODERATION | moderation_engine_blocked | REST | NOT_IMPLEMENTED | NOT_IMPLEMENTED | NOT_IMPLEMENTED |
-| MODERATION | moderation_engine_approved | REST | NOT_IMPLEMENTED | NOT_IMPLEMENTED | NOT_IMPLEMENTED |
+| MODERATION | moderation_engine_blocked | REST | PASSED | NOT_IMPLEMENTED | NOT_IMPLEMENTED |
+| MODERATION | moderation_engine_approved | REST | PASSED | NOT_IMPLEMENTED | NOT_IMPLEMENTED |
 | MODERATION | moderation_manual_approved | NONE | BLOCKED | BLOCKED | BLOCKED |
 
 ## Totals per environment
 
 | Environment | Total | Passed | Failed | Skipped | Not implemented | Blocked |
 |---|---|---|---|---|---|---|
-| prod-eu | 56 | 24 | 0 | 0 | 6 | 26 |
+| prod-eu | 56 | 26 | 0 | 0 | 4 | 26 |
 | prod-us | 51 | 24 | 0 | 0 | 2 | 25 |
 | prod-in | 51 | 2 | 22 | 0 | 2 | 25 |

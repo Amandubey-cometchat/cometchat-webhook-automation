@@ -7,7 +7,7 @@ import { MODERATION_REGISTRY } from '../../registry/moderation.registry';
 // sync with it. test.skip() is called *inside* each test body (not the
 // declarative form) so the reason string reaches the JSON reporter output.
 test.describe('Moderation webhooks (documented gaps)', () => {
-  for (const entry of MODERATION_REGISTRY) {
+  for (const entry of MODERATION_REGISTRY.filter((e) => e.status !== 'AUTOMATED')) {
     test(`${entry.id} (documented gap)`, () => {
       test.skip(true, `[${entry.status}] ${entry.reason}`);
     });

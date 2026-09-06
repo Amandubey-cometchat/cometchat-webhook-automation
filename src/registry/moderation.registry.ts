@@ -8,39 +8,25 @@ export const MODERATION_REGISTRY: WebhookRegistryEntry[] = [
     id: 'moderation_engine_blocked',
     category: 'MODERATION',
     environments: ALL_ENVS,
-    trigger: 'Send message content that should be flagged by an active moderation rule',
+    trigger: 'Send message content matching the Profanity filter rule',
     expectedEvent: 'moderation_engine_blocked',
     automationMethod: 'REST',
-    expectedPayloadKeys: [],
-    status: 'NOT_IMPLEMENTED',
-    specFile: 'src/tests/moderation/moderation.spec.ts',
-    testTitleMatch: 'moderation_engine_blocked (documented gap)',
-    reason:
-      'Live-probed 2026-09-04 against prod-eu: a message containing a 10+ digit phone-like pattern (the exact ' +
-      'pattern this project previously observed CometChat block) now sends cleanly as message_sent, not ' +
-      'moderation_engine_blocked. The message metadata does show a "human-moderation" extension ran ' +
-      '(metadata.@injected.extensions.human-moderation.success = true), but no moderation webhook fired at ' +
-      'all. Re-probed 2026-09-05 (new prod-eu app) with profanity/violence words ("kill", "fuck") instead of a ' +
-      'phone pattern: both sent cleanly as message_sent too, and this time the human-moderation extension key ' +
-      "was absent from metadata entirely (only link-preview ran) — meaning it didn't even attempt to process " +
-      'this content, unlike the phone-pattern case. Together this suggests specific moderation rules are ' +
-      'individually toggled (same per-trigger-checkbox pattern as Group triggers) rather than one on/off switch, ' +
-      'and profanity detection specifically may not be an enabled rule on this app at all. Needs a Dashboard ' +
-      'check: Moderation -> which specific rules are enabled, plus whether the Moderation trigger category is ' +
-      'checked in the webhook config.',
+    expectedPayloadKeys: ['data.message.id', 'data.message.data.moderation.status', 'data.message.data.moderation.rule.id', 'data.moderation'],
+    status: 'AUTOMATED',
+    specFile: 'src/tests/moderation/moderation-engine-blocked.spec.ts',
+    testTitleMatch: 'moderation_engine_blocked webhook fires when a message matches the Profanity filter',
   },
   {
     id: 'moderation_engine_approved',
     category: 'MODERATION',
     environments: ALL_ENVS,
-    trigger: 'Send message content that clears active moderation checks',
+    trigger: 'Send ordinary message content that clears moderation checks',
     expectedEvent: 'moderation_engine_approved',
     automationMethod: 'REST',
-    expectedPayloadKeys: [],
-    status: 'NOT_IMPLEMENTED',
-    specFile: 'src/tests/moderation/moderation.spec.ts',
-    testTitleMatch: 'moderation_engine_approved (documented gap)',
-    reason: 'Same root cause as moderation_engine_blocked above.',
+    expectedPayloadKeys: ['data.message.id', 'data.message.data.moderation.status'],
+    status: 'AUTOMATED',
+    specFile: 'src/tests/moderation/moderation-engine-approved.spec.ts',
+    testTitleMatch: 'moderation_engine_approved webhook fires when a clean message clears moderation',
   },
   {
     id: 'moderation_manual_approved',

@@ -4,11 +4,15 @@
  * through the normal Messages API. This client just sends probe content
  * shaped to exercise moderation rules, reusing messages.client.ts underneath.
  *
- * Live-reprobed 2026-09-04 against prod-eu: content that previously tripped
- * the "Contact details filter" (a 10+ digit phone-like pattern) now sends
- * cleanly as message_sent — no moderation_engine_blocked/approved webhook
- * fires either way, even though the message's own metadata shows a
- * moderation extension ran. See src/registry/moderation.registry.ts.
+ * Live-verified 2026-09-06 against prod-eu, with the Moderation trigger
+ * category and its "Profanity filter" rule enabled: a phone-number pattern
+ * does NOT trigger a block (that rule isn't the active one on this app), but
+ * a word from the Profanity filter's own word list does — confirmed via the
+ * real webhook payload, which names the exact rule
+ * (data.message.data.moderation.rule.id === "profanity-filter") and lists
+ * its full flagged-word set. "damn" is used here as the mildest real word
+ * confirmed present in that list, rather than a stronger one — still a real,
+ * live-verified trigger, not a softened assumption.
  */
 import { sendTextMessage } from './messages.client';
 
@@ -18,17 +22,17 @@ export interface SendProbeMessageOptions {
   receiverType?: 'user' | 'group';
 }
 
-/** Content shaped like a phone number — the pattern this project previously observed CometChat's "Contact details filter" block. */
-export async function sendPhonePatternMessage({ sender, receiver, receiverType = 'user' }: SendProbeMessageOptions) {
+/** Confirmed live to trip the Profanity filter rule and fire moderation_engine_blocked. */
+export async function sendFlaggedMessage({ sender, receiver, receiverType = 'user' }: SendProbeMessageOptions) {
   return sendTextMessage({
     sender,
     receiver,
     receiverType,
-    text: `call me at 9876543210 please ${Date.now().toString(36)}`,
+    text: `damn ${Date.now().toString(36)}`,
   });
 }
 
-/** Ordinary, non-flagged content — the counterpart probe for moderation_engine_approved. */
+/** Ordinary, non-flagged content — confirmed live to fire moderation_engine_approved. */
 export async function sendCleanMessage({ sender, receiver, receiverType = 'user' }: SendProbeMessageOptions) {
   return sendTextMessage({
     sender,
