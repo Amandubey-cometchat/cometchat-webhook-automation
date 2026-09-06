@@ -545,7 +545,11 @@
     const filtered = filter ? catFiltered.filter((e) => e.trigger === filter) : catFiltered;
 
     countEl.textContent = filtered.length + (filter || selectedCategory ? ` of ${events.length}` : '') + ' event' + (events.length === 1 ? '' : 's');
-    emptyEl.style.display = filtered.length ? 'none' : 'block';
+    // Gated on activeTab, not just "is there data" — render() can run while
+    // the Results tab is showing (e.g. Clear all polls both stores
+    // together), and this element must stay hidden unless Events is
+    // actually the visible tab, or both empty-states can show at once.
+    emptyEl.style.display = activeTab === 'events' && !filtered.length ? 'block' : 'none';
 
     const dupInfo = computeDuplicates(events); // computed over the FULL set — a duplicate delivery is real regardless of which filter is currently applied
 
@@ -695,7 +699,11 @@
 
     const filtered = resultsCategoryFilter ? data.tests.filter((t) => t.category === resultsCategoryFilter) : data.tests;
 
-    resultsEmptyEl.style.display = data.available === false ? 'block' : (filtered.length ? 'none' : 'block');
+    // Same activeTab gating as render()'s emptyEl above — renderResults()
+    // can run while the Events tab is showing (Clear all polls both stores
+    // together), and this must stay hidden unless Results is the visible tab.
+    const resultsEmptyNeeded = data.available === false || !filtered.length;
+    resultsEmptyEl.style.display = activeTab === 'results' && resultsEmptyNeeded ? 'block' : 'none';
     if (data.available === false) {
       resultsEmptyEl.textContent = 'No test run found yet. Run npx playwright test and this will populate.';
     } else if (!filtered.length) {
