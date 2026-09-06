@@ -193,6 +193,18 @@ app.get('/test-results', (_req, res) => {
   });
 });
 
+// Clears the last uploaded test run's snapshot — the dashboard's "Clear
+// all" button calls this alongside DELETE /webhook/history so both tabs
+// reset together. No auth, same as the other dashboard-convenience clears
+// below (DELETE /webhook/events, /webhook/history).
+app.delete('/test-results', (_req, res) => {
+  latestReport = null;
+  fs.unlink(TEST_RESULTS_FILE, (err) => {
+    if (err && err.code !== 'ENOENT') console.error('Failed to remove test results file:', err.message);
+  });
+  res.json({ ok: true });
+});
+
 // Visual inspector — browse every received webhook event, grouped by trigger.
 app.get('/dashboard', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
 
@@ -205,5 +217,6 @@ app.listen(PORT, () => {
   console.log(`  DELETE /webhook/history  <- clear persisted history`);
   console.log(`  POST   /test-results     <- uploaded after each test run (see scripts/upload-test-results.js)`);
   console.log(`  GET    /test-results     <- Playwright pass/fail/skip breakdown`);
+  console.log(`  DELETE /test-results     <- clear the last uploaded test run's snapshot`);
   console.log(`  GET    /dashboard        <- visual event inspector (reads history)`);
 });

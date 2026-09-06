@@ -588,11 +588,14 @@
   filterEl.addEventListener('change', () => { lastRenderKey = ''; poll(true); });
 
   clearBtn.addEventListener('click', async () => {
-    if (!confirm('Clear all stored events?')) return;
-    await fetch('/webhook/history', { method: 'DELETE' });
+    if (!confirm('Clear all stored events and the last test results?')) return;
+    await Promise.all([fetch('/webhook/history', { method: 'DELETE' }), fetch('/test-results', { method: 'DELETE' })]);
     openIds.clear();
+    openResultIds.clear();
     lastRenderKey = '';
+    lastResultsRenderKey = '';
     poll(true);
+    pollResults(true);
   });
 
   poll();
