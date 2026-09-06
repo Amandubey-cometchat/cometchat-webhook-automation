@@ -374,25 +374,26 @@
     { key: 'MODERATION', label: 'Moderation', registryCats: ['MODERATION'] },
     { key: 'LEGACY', label: 'Legacy', registryCats: ['LEGACY'] },
   ];
-  let triggerCategories = {};
+  let triggerToCategory = {}; // trigger name -> registry category, for grouping LIVE events (collision-resolved, see generate-trigger-categories.ts)
+  let categoryTotals = {}; // registry category -> how many webhooks are REGISTERED there, no collision resolution
   let selectedCategory = ''; // '' = All
 
   function displayCategoryOf(trigger) {
-    const registryCat = triggerCategories[trigger];
+    const registryCat = triggerToCategory[trigger];
     const found = DISPLAY_CATEGORIES.find((c) => c.registryCats.includes(registryCat));
     return found ? found.key : 'OTHER';
   }
 
-  // Total registered webhooks per display category, from the registry
-  // itself (trigger-categories.json) — not from what's happened to arrive
-  // in history. Computed once triggerCategories loads; "OTHER" has no
-  // fixed total since it's an open-ended catch-all for anything not yet in
-  // the registry.
-  function totalsByCategory() {
+  // Total registered webhooks per display category, straight from the
+  // registry's own per-category counts — deliberately NOT derived from
+  // triggerToCategory, which collapses the 2 trigger names Legacy shares
+  // with Message down to whichever one wins the collision. Legacy is
+  // correctly 5 here even though only 3 of its names are ever uniquely
+  // attributable in a live event.
+  function totalsByDisplayCategory() {
     const totals = {};
-    for (const trigger of Object.keys(triggerCategories)) {
-      const key = displayCategoryOf(trigger);
-      totals[key] = (totals[key] || 0) + 1;
+    for (const c of DISPLAY_CATEGORIES) {
+      totals[c.key] = c.registryCats.reduce((sum, rc) => sum + (categoryTotals[rc] || 0), 0);
     }
     return totals;
   }
@@ -411,8 +412,8 @@
       if (!firedTriggersByCategory[key]) firedTriggersByCategory[key] = new Set();
       firedTriggersByCategory[key].add(e.trigger);
     }
-    const totals = totalsByCategory();
-    const grandTotal = Object.keys(triggerCategories).length;
+    const totals = totalsByDisplayCategory();
+    const grandTotal = Object.values(categoryTotals).reduce((a, b) => a + b, 0);
 
     const items = [{ key: '', label: 'All', fired: allFiredTriggers.size, total: grandTotal }].concat(
       DISPLAY_CATEGORIES.map((c) => ({
@@ -439,7 +440,12 @@
 
   fetch('/trigger-categories.json')
     .then((r) => r.json())
-    .then((map) => { triggerCategories = map; lastRenderKey = ''; poll(true); })
+    .then((data) => {
+      triggerToCategory = data.triggerToCategory || {};
+      categoryTotals = data.categoryTotals || {};
+      lastRenderKey = '';
+      poll(true);
+    })
     .catch(() => {}); // categorization is a nice-to-have — events still render fine without it, just all under "Other"
 
   function fmtTime(ms) {
@@ -601,20 +607,28 @@
       .join('');
   }
 
+  // Pure client-side interactions (expand a card, pick a category, change
+  // the trigger filter) re-render instantly from whatever's already
+  // loaded — they never need to wait on a network round-trip just to
+  // reflect a UI-only state change. The 1.5s background poll() keeps
+  // lastEventsData fresh regardless of which of these was last touched.
+  function rerender() {
+    lastRenderKey = '';
+    render(lastEventsData);
+  }
+
   window.__toggle = (id) => {
     if (openIds.has(id)) openIds.delete(id);
     else openIds.add(id);
-    lastRenderKey = '';
-    poll(true);
+    rerender();
   };
 
   sidebarEl.addEventListener('click', (ev) => {
     const btn = ev.target.closest('.sidebar-item');
     if (!btn) return;
     selectedCategory = btn.dataset.cat;
-    lastRenderKey = '';
     if (activeTab !== 'events') setTab('events');
-    poll(true);
+    rerender();
   });
 
   window.__copy = (json) => {
@@ -636,12 +650,15 @@
     filterEl.value = current;
   }
 
+  let lastEventsData = [];
+
   async function poll(force) {
     try {
       const res = await fetch('/webhook/history');
       const json = await res.json();
       dotEl.classList.remove('off');
       statusText.textContent = 'connected';
+      lastEventsData = json.events;
       updateFilterOptions(json.events);
       render(json.events);
     } catch (err) {
@@ -650,7 +667,7 @@
     }
   }
 
-  filterEl.addEventListener('change', () => { lastRenderKey = ''; poll(true); });
+  filterEl.addEventListener('change', rerender);
 
   clearBtn.addEventListener('click', async () => {
     if (!confirm('Clear all stored events and the last test results?')) return;

@@ -1,15 +1,34 @@
 /**
- * Generates receiver/public/trigger-categories.json — a flat
- * { "group_created": "GROUP", "message_sent": "MESSAGE", ... } map derived
- * from src/registry/webhook.registry.ts (the single source of truth), so
- * the dashboard can group live webhook events by category without
- * duplicating the registry data by hand.
+ * Generates receiver/public/trigger-categories.json from
+ * src/registry/webhook.registry.ts (the single source of truth), so the
+ * dashboard can group live webhook events and show per-category coverage
+ * without duplicating the registry data by hand.
  *
  * The receiver is a separate, plain-JS deployed service with no access to
  * this project's TypeScript registry at runtime — this script bridges that
  * gap by producing a static asset committed alongside it. Re-run whenever
  * a webhook is added to/removed from the registry:
  *   npx tsx scripts/generate-trigger-categories.ts
+ *
+ * Two separate structures, deliberately not one flat map — they answer
+ * different questions:
+ *
+ *   triggerToCategory: which category does a LIVE EVENT belong in, keyed by
+ *     the real trigger name CometChat sends. Legacy shares 2 trigger names
+ *     with the modern MESSAGE category (message_delivery_receipt,
+ *     message_read_receipt — see legacy.registry.ts) and a raw payload has
+ *     no field saying which system sent it, so this is first-write-wins:
+ *     REGISTRY's category order puts MESSAGE before LEGACY, so those 2
+ *     names keep grouping under Message (the far more common, automated
+ *     case) for live events. This is a real, inherent limitation — not a
+ *     bug — for exactly those 2 trigger names.
+ *
+ *   categoryTotals: how many webhooks are REGISTERED in each category,
+ *     counted directly from the registry with no collision resolution.
+ *     Legacy is 5 here even though only 3 of its names are uniquely
+ *     identifiable in a live event — the "registered" count and the
+ *     "can this live event be unambiguously attributed" question are
+ *     answered separately on purpose.
  */
 import fs from 'fs';
 import path from 'path';
@@ -17,19 +36,21 @@ import { REGISTRY } from '../src/registry/webhook.registry';
 
 const OUT_FILE = path.join(__dirname, '..', 'receiver', 'public', 'trigger-categories.json');
 
-// Keyed by expectedEvent (the real trigger name CometChat sends), not the
-// registry's internal id — those match for every entry except the legacy
-// ones, which reuse "message_delivery_receipt"/"message_read_receipt" from
-// the modern system under a disambiguated id (see legacy.registry.ts).
-// First-write-wins on collisions: REGISTRY's category order (webhook.registry.ts)
-// puts MESSAGE before LEGACY specifically so the shared names keep mapping
-// to the already-automated modern case for dashboard grouping.
-const map: Record<string, string> = {};
+const triggerToCategory: Record<string, string> = {};
 for (const entry of REGISTRY) {
-  if (map[entry.expectedEvent] === undefined) {
-    map[entry.expectedEvent] = entry.category;
+  if (triggerToCategory[entry.expectedEvent] === undefined) {
+    triggerToCategory[entry.expectedEvent] = entry.category;
   }
 }
 
-fs.writeFileSync(OUT_FILE, JSON.stringify(map, null, 2) + '\n');
-console.log(`Wrote ${Object.keys(map).length} trigger -> category mappings to ${path.relative(process.cwd(), OUT_FILE)}`);
+const categoryTotals: Record<string, number> = {};
+for (const entry of REGISTRY) {
+  categoryTotals[entry.category] = (categoryTotals[entry.category] || 0) + 1;
+}
+
+const output = { triggerToCategory, categoryTotals };
+fs.writeFileSync(OUT_FILE, JSON.stringify(output, null, 2) + '\n');
+console.log(
+  `Wrote ${Object.keys(triggerToCategory).length} trigger->category mappings and ${Object.keys(categoryTotals).length} ` +
+    `category totals (${REGISTRY.length} webhooks total) to ${path.relative(process.cwd(), OUT_FILE)}`
+);
