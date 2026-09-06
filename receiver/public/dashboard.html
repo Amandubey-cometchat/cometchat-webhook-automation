@@ -382,23 +382,55 @@
     return found ? found.key : 'OTHER';
   }
 
-  function renderSidebar(events) {
-    const counts = {};
-    for (const e of events) {
-      const key = displayCategoryOf(e.trigger);
-      counts[key] = (counts[key] || 0) + 1;
+  // Total registered webhooks per display category, from the registry
+  // itself (trigger-categories.json) — not from what's happened to arrive
+  // in history. Computed once triggerCategories loads; "OTHER" has no
+  // fixed total since it's an open-ended catch-all for anything not yet in
+  // the registry.
+  function totalsByCategory() {
+    const totals = {};
+    for (const trigger of Object.keys(triggerCategories)) {
+      const key = displayCategoryOf(trigger);
+      totals[key] = (totals[key] || 0) + 1;
     }
-    const total = events.length;
-    const items = [{ key: '', label: 'All', count: total }]
-      .concat(DISPLAY_CATEGORIES.map((c) => ({ key: c.key, label: c.label, count: counts[c.key] || 0 })));
-    if (counts.OTHER) items.push({ key: 'OTHER', label: 'Other', count: counts.OTHER });
+    return totals;
+  }
+
+  function renderSidebar(events) {
+    // "Fired" = how many DISTINCT webhook types have shown up at least
+    // once in history, not raw event volume — e.g. 40 message_sent events
+    // still only count as 1 toward Message's fired total. That's what
+    // makes "3/3" a meaningful coverage signal instead of just noise.
+    const firedTriggersByCategory = {};
+    const allFiredTriggers = new Set();
+    for (const e of events) {
+      if (!e.trigger) continue;
+      allFiredTriggers.add(e.trigger);
+      const key = displayCategoryOf(e.trigger);
+      if (!firedTriggersByCategory[key]) firedTriggersByCategory[key] = new Set();
+      firedTriggersByCategory[key].add(e.trigger);
+    }
+    const totals = totalsByCategory();
+    const grandTotal = Object.keys(triggerCategories).length;
+
+    const items = [{ key: '', label: 'All', fired: allFiredTriggers.size, total: grandTotal }].concat(
+      DISPLAY_CATEGORIES.map((c) => ({
+        key: c.key,
+        label: c.label,
+        fired: (firedTriggersByCategory[c.key] || new Set()).size,
+        total: totals[c.key] || 0,
+      }))
+    );
+    if (firedTriggersByCategory.OTHER) {
+      items.push({ key: 'OTHER', label: 'Other', fired: firedTriggersByCategory.OTHER.size, total: null });
+    }
 
     sidebarEl.innerHTML = items
       .map(
         (it) => `
         <button class="sidebar-item ${selectedCategory === it.key ? 'active' : ''}" data-cat="${it.key}">
           <span>${escapeHtml(it.label)}</span>
-          <span class="sidebar-count">${it.count}</span>
+          <span class="sidebar-count">${it.total == null ? it.fired : it.fired + '/' + it.total}</span>
         </button>`
       )
       .join('');
