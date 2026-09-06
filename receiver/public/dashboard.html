@@ -80,6 +80,42 @@
     padding: 60px 20px;
     font-size: 14px;
   }
+  .category-section {
+    margin-bottom: 16px;
+  }
+  .category-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+    background: #1a1d28;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+  }
+  .category-head:hover { border-color: var(--accent); }
+  .category-head .chevron { transition: transform 0.15s; }
+  .category-section.open .category-head .chevron { transform: rotate(90deg); }
+  .category-name {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--text);
+  }
+  .category-count {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    background: rgba(108,140,255,0.12);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .category-events {
+    display: none;
+    padding-top: 10px;
+  }
+  .category-section.open .category-events { display: block; }
   .event {
     background: var(--panel);
     border: 1px solid var(--panel-border);
@@ -283,6 +319,23 @@
   let knownTriggers = new Set();
   let lastRenderKey = '';
 
+  // Category grouping — trigger -> category comes from
+  // /trigger-categories.json, generated from src/registry/webhook.registry.ts
+  // (see scripts/generate-trigger-categories.ts) so this never has to be
+  // kept in sync by hand.
+  const CATEGORY_ORDER = ['GROUP', 'MESSAGE', 'USER', 'MODERATION', 'CALLS', 'MEETINGS', 'CAMPAIGN', 'OTHER'];
+  let triggerCategories = {};
+  const openCategories = new Set(CATEGORY_ORDER);
+
+  function categoryOf(trigger) {
+    return triggerCategories[trigger] || 'OTHER';
+  }
+
+  fetch('/trigger-categories.json')
+    .then((r) => r.json())
+    .then((map) => { triggerCategories = map; lastRenderKey = ''; poll(true); })
+    .catch(() => {}); // categorization is a nice-to-have — events still render fine without it, just all under "OTHER"
+
   function fmtTime(ms) {
     const d = new Date(ms);
     return d.toLocaleTimeString(undefined, { hour12: false }) + '.' + String(d.getMilliseconds()).padStart(3, '0');
@@ -322,6 +375,26 @@
     return e.receivedAt + ':' + (e.trigger || '');
   }
 
+  function renderEventCard(e) {
+    const id = eventId(e);
+    const open = openIds.has(id);
+    return `
+    <div class="event ${open ? 'open' : ''}" data-id="${id}">
+      <div class="event-head" onclick="window.__toggle('${id}')">
+        <span class="chevron">▶</span>
+        <span class="badge">${escapeHtml(e.trigger || 'unknown')}</span>
+        <span class="time">${fmtTime(e.receivedAt)}</span>
+        <span class="summary">${escapeHtml(summarize(e.payload))}</span>
+      </div>
+      <div class="event-body">
+        <pre>${highlightJson(e.payload)}</pre>
+        <div class="copy-row">
+          <button onclick='window.__copy(${JSON.stringify(JSON.stringify(e.payload))})'>Copy JSON</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
   function render(events) {
     const filter = filterEl.value;
     const filtered = filter ? events.filter((e) => e.trigger === filter) : events;
@@ -329,30 +402,34 @@
     countEl.textContent = filtered.length + (filter ? ` of ${events.length}` : '') + ' event' + (events.length === 1 ? '' : 's');
     emptyEl.style.display = filtered.length ? 'none' : 'block';
 
-    const renderKey = filtered.map(eventId).join('|') + '|' + [...openIds].join(',');
+    const renderKey =
+      filtered.map(eventId).join('|') + '|' + [...openIds].join(',') + '|' + [...openCategories].join(',') + '|' + JSON.stringify(triggerCategories);
     if (renderKey === lastRenderKey) return;
     lastRenderKey = renderKey;
 
-    listEl.innerHTML = filtered
-      .slice()
-      .reverse()
-      .map((e) => {
-        const id = eventId(e);
-        const open = openIds.has(id);
+    // Group newest-first within each category, categories in a fixed,
+    // meaningful order (not alphabetical) — matches the registry's category
+    // grouping so this reads the same way the coverage report does.
+    const byCategory = new Map();
+    for (const e of filtered.slice().reverse()) {
+      const cat = categoryOf(e.trigger);
+      if (!byCategory.has(cat)) byCategory.set(cat, []);
+      byCategory.get(cat).push(e);
+    }
+    const orderedCats = CATEGORY_ORDER.filter((c) => byCategory.has(c));
+
+    listEl.innerHTML = orderedCats
+      .map((cat) => {
+        const catEvents = byCategory.get(cat);
+        const open = openCategories.has(cat);
         return `
-        <div class="event ${open ? 'open' : ''}" data-id="${id}">
-          <div class="event-head" onclick="window.__toggle('${id}')">
+        <div class="category-section ${open ? 'open' : ''}" data-cat="${cat}">
+          <div class="category-head" onclick="window.__toggleCategory('${cat}')">
             <span class="chevron">▶</span>
-            <span class="badge">${escapeHtml(e.trigger || 'unknown')}</span>
-            <span class="time">${fmtTime(e.receivedAt)}</span>
-            <span class="summary">${escapeHtml(summarize(e.payload))}</span>
+            <span class="category-name">${escapeHtml(cat)}</span>
+            <span class="category-count">${catEvents.length}</span>
           </div>
-          <div class="event-body">
-            <pre>${highlightJson(e.payload)}</pre>
-            <div class="copy-row">
-              <button onclick='window.__copy(${JSON.stringify(JSON.stringify(e.payload))})'>Copy JSON</button>
-            </div>
-          </div>
+          <div class="category-events">${catEvents.map(renderEventCard).join('')}</div>
         </div>`;
       })
       .join('');
@@ -361,6 +438,13 @@
   window.__toggle = (id) => {
     if (openIds.has(id)) openIds.delete(id);
     else openIds.add(id);
+    lastRenderKey = '';
+    poll(true);
+  };
+
+  window.__toggleCategory = (cat) => {
+    if (openCategories.has(cat)) openCategories.delete(cat);
+    else openCategories.add(cat);
     lastRenderKey = '';
     poll(true);
   };

@@ -6,6 +6,10 @@ const express = require('express');
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
+// Serves trigger-categories.json (generated from src/registry/webhook.registry.ts
+// — see scripts/generate-trigger-categories.ts) so the dashboard can group
+// webhook events by category, plus any other future static assets.
+app.use(express.static(path.join(__dirname, 'public')));
 
 const USER = process.env.BASIC_AUTH_USER || 'qa';
 const PASS = process.env.BASIC_AUTH_PASS || 'change-me';
