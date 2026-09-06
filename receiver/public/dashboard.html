@@ -467,6 +467,18 @@
     return null;
   }
 
+  // Matches src/utils/timeout.ts's DUPLICATE_SETTLE_WINDOW_MS (4000) — the
+  // same project-established threshold for "how long to watch for a
+  // redelivery of the same webhook", plus a little headroom. A fingerprint
+  // match on its own isn't enough to call something a duplicate delivery:
+  // some triggers (user_blocked/unblocked, connection status) only carry
+  // identifying fields drawn from this project's small set of fixed test
+  // users, so the SAME fingerprint recurs across every unrelated test run
+  // in history, sometimes hours apart. A real duplicate delivery — the
+  // thing worth flagging — lands close together in time; two coincidentally
+  // matching events from separate runs don't.
+  const DUPLICATE_WINDOW_MS = 5000;
+
   function computeDuplicates(events) {
     const groups = new Map();
     for (const e of events) {
@@ -480,9 +492,22 @@
     for (const list of groups.values()) {
       if (list.length < 2) continue;
       list.sort((a, b) => a.receivedAt - b.receivedAt);
-      list.forEach((e, i) => {
-        dupInfo.set(eventId(e), { index: i + 1, count: list.length, deltaMs: e.receivedAt - list[0].receivedAt });
-      });
+      // Cluster into bursts that landed within the window of each other —
+      // only a burst counts as a plausible duplicate delivery, not the
+      // whole historical group sharing a fingerprint.
+      let clusterStart = 0;
+      for (let i = 1; i <= list.length; i++) {
+        const endOfCluster = i === list.length || list[i].receivedAt - list[i - 1].receivedAt > DUPLICATE_WINDOW_MS;
+        if (endOfCluster) {
+          const cluster = list.slice(clusterStart, i);
+          if (cluster.length > 1) {
+            cluster.forEach((e, idx) => {
+              dupInfo.set(eventId(e), { index: idx + 1, count: cluster.length, deltaMs: e.receivedAt - cluster[0].receivedAt });
+            });
+          }
+          clusterStart = i;
+        }
+      }
     }
     return dupInfo;
   }
