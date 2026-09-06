@@ -54,5 +54,8 @@
   "user_connection_status_changed": "USER",
   "moderation_engine_blocked": "MODERATION",
   "moderation_engine_approved": "MODERATION",
-  "moderation_manual_approved": "MODERATION"
+  "moderation_manual_approved": "MODERATION",
+  "after_message": "LEGACY",
+  "before_message": "LEGACY",
+  "after_connection_status_changed": "LEGACY"
 }

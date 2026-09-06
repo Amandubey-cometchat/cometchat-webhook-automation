@@ -15,8 +15,9 @@ import { MEETINGS_REGISTRY } from './meetings.registry';
 import { CAMPAIGN_REGISTRY } from './campaign.registry';
 import { USER_REGISTRY } from './user.registry';
 import { MODERATION_REGISTRY } from './moderation.registry';
+import { LEGACY_REGISTRY } from './legacy.registry';
 
-export type WebhookCategory = 'GROUP' | 'MESSAGE' | 'CALLS' | 'MEETINGS' | 'CAMPAIGN' | 'USER' | 'MODERATION';
+export type WebhookCategory = 'GROUP' | 'MESSAGE' | 'CALLS' | 'MEETINGS' | 'CAMPAIGN' | 'USER' | 'MODERATION' | 'LEGACY';
 export type AutomationMethod = 'REST' | 'SDK' | 'NONE';
 export type WebhookStatus = 'AUTOMATED' | 'NOT_IMPLEMENTED' | 'BLOCKED';
 
@@ -35,6 +36,12 @@ export interface WebhookRegistryEntry {
   reason?: string;
 }
 
+// Order matters for scripts/generate-trigger-categories.ts, which does
+// first-write-wins on trigger name -> category: MESSAGE must come before
+// LEGACY so the two trigger names legacy shares with it
+// (message_delivery_receipt, message_read_receipt) keep mapping to the
+// already-automated, far more common modern case for dashboard grouping —
+// see legacy.registry.ts's header comment for why they collide at all.
 export const CATEGORIES: Record<WebhookCategory, WebhookRegistryEntry[]> = {
   GROUP: GROUP_REGISTRY,
   MESSAGE: MESSAGE_REGISTRY,
@@ -43,6 +50,7 @@ export const CATEGORIES: Record<WebhookCategory, WebhookRegistryEntry[]> = {
   CAMPAIGN: CAMPAIGN_REGISTRY,
   USER: USER_REGISTRY,
   MODERATION: MODERATION_REGISTRY,
+  LEGACY: LEGACY_REGISTRY,
 };
 
 export const REGISTRY: WebhookRegistryEntry[] = Object.values(CATEGORIES).flat();

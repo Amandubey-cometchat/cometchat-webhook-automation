@@ -17,9 +17,18 @@ import { REGISTRY } from '../src/registry/webhook.registry';
 
 const OUT_FILE = path.join(__dirname, '..', 'receiver', 'public', 'trigger-categories.json');
 
+// Keyed by expectedEvent (the real trigger name CometChat sends), not the
+// registry's internal id — those match for every entry except the legacy
+// ones, which reuse "message_delivery_receipt"/"message_read_receipt" from
+// the modern system under a disambiguated id (see legacy.registry.ts).
+// First-write-wins on collisions: REGISTRY's category order (webhook.registry.ts)
+// puts MESSAGE before LEGACY specifically so the shared names keep mapping
+// to the already-automated modern case for dashboard grouping.
 const map: Record<string, string> = {};
 for (const entry of REGISTRY) {
-  map[entry.id] = entry.category;
+  if (map[entry.expectedEvent] === undefined) {
+    map[entry.expectedEvent] = entry.category;
+  }
 }
 
 fs.writeFileSync(OUT_FILE, JSON.stringify(map, null, 2) + '\n');
