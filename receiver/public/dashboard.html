@@ -69,9 +69,63 @@
   button:hover { border-color: var(--accent); }
   button.danger:hover { border-color: #e05252; color: #ff8080; }
   .spacer { flex: 1; }
-  main {
-    max-width: 980px;
+  .app-shell {
+    display: flex;
+    align-items: flex-start;
+    max-width: 1180px;
     margin: 0 auto;
+  }
+  .sidebar {
+    width: 200px;
+    flex: none;
+    padding: 20px 8px 20px 20px;
+    position: sticky;
+    top: 57px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid transparent;
+    text-align: left;
+    width: 100%;
+  }
+  .sidebar-item:hover { background: #1a1d28; color: var(--text); }
+  .sidebar-item.active {
+    background: var(--panel);
+    border-color: var(--panel-border);
+    color: var(--text);
+    font-weight: 600;
+  }
+  .sidebar-item .sidebar-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    background: rgba(108,140,255,0.12);
+    padding: 1px 7px;
+    border-radius: 10px;
+  }
+  .sidebar-item.active .sidebar-count { color: var(--accent); }
+  .sidebar-divider {
+    height: 1px;
+    background: var(--panel-border);
+    margin: 8px 4px;
+  }
+  .main-content {
+    flex: 1;
+    min-width: 0;
+  }
+  main {
     padding: 20px;
   }
   .empty {
@@ -80,48 +134,22 @@
     padding: 60px 20px;
     font-size: 14px;
   }
-  .category-section {
-    margin-bottom: 16px;
-  }
-  .category-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    cursor: pointer;
-    user-select: none;
-    background: #1a1d28;
-    border: 1px solid var(--panel-border);
-    border-radius: 8px;
-  }
-  .category-head:hover { border-color: var(--accent); }
-  .category-head .chevron { transition: transform 0.15s; }
-  .category-section.open .category-head .chevron { transform: rotate(90deg); }
-  .category-name {
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    color: var(--text);
-  }
-  .category-count {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--muted);
-    background: rgba(108,140,255,0.12);
-    padding: 2px 8px;
-    border-radius: 10px;
-  }
-  .category-events {
-    display: none;
-    padding-top: 10px;
-  }
-  .category-section.open .category-events { display: block; }
   .event {
     background: var(--panel);
     border: 1px solid var(--panel-border);
     border-radius: 10px;
     margin-bottom: 10px;
     overflow: hidden;
+  }
+  .event.dup { border-color: var(--warn); }
+  .dup-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(226,163,61,0.18);
+    color: var(--warn);
+    white-space: nowrap;
   }
   .event-head {
     display: flex;
@@ -282,28 +310,34 @@
   </label>
 </header>
 
-<div class="subheader" id="eventsSubheader">
-  <select id="triggerFilter"><option value="">All triggers</option></select>
-  <span class="count" id="count"></span>
-  <div class="spacer"></div>
-  <button id="clearBtn" class="danger">Clear all</button>
-</div>
+<div class="app-shell">
+  <nav class="sidebar" id="sidebar"></nav>
 
-<div class="subheader" id="resultsSubheader" style="display:none;">
-  <div class="stat active" data-cat="" id="statAll"><span class="n" id="statAllN">0</span><span class="l">total</span></div>
-  <div class="stat" data-cat="passed"><span class="dot2 passed"></span><span class="n" id="statPassedN">0</span><span class="l">passed</span></div>
-  <div class="stat" data-cat="failed"><span class="dot2 failed"></span><span class="n" id="statFailedN">0</span><span class="l">failed</span></div>
-  <div class="stat" data-cat="expected-fail"><span class="dot2 expected-fail"></span><span class="n" id="statExpFailN">0</span><span class="l">known issue</span></div>
-  <div class="stat" data-cat="skipped"><span class="dot2 skipped"></span><span class="n" id="statSkippedN">0</span><span class="l">skipped</span></div>
-  <span class="run-meta" id="runMeta"></span>
-</div>
+  <div class="main-content">
+    <div class="subheader" id="eventsSubheader">
+      <select id="triggerFilter"><option value="">All triggers</option></select>
+      <span class="count" id="count"></span>
+      <div class="spacer"></div>
+      <button id="clearBtn" class="danger">Clear all</button>
+    </div>
 
-<main>
-  <div id="list"></div>
-  <div id="resultsList" style="display:none;"></div>
-  <div class="empty" id="emptyState">No events yet. Trigger an action in CometChat and it'll show up here within a couple seconds.</div>
-  <div class="empty" id="resultsEmptyState" style="display:none;">No test run found yet. Run <code>npx playwright test</code> and this will populate.</div>
-</main>
+    <div class="subheader" id="resultsSubheader" style="display:none;">
+      <div class="stat active" data-cat="" id="statAll"><span class="n" id="statAllN">0</span><span class="l">total</span></div>
+      <div class="stat" data-cat="passed"><span class="dot2 passed"></span><span class="n" id="statPassedN">0</span><span class="l">passed</span></div>
+      <div class="stat" data-cat="failed"><span class="dot2 failed"></span><span class="n" id="statFailedN">0</span><span class="l">failed</span></div>
+      <div class="stat" data-cat="expected-fail"><span class="dot2 expected-fail"></span><span class="n" id="statExpFailN">0</span><span class="l">known issue</span></div>
+      <div class="stat" data-cat="skipped"><span class="dot2 skipped"></span><span class="n" id="statSkippedN">0</span><span class="l">skipped</span></div>
+      <span class="run-meta" id="runMeta"></span>
+    </div>
+
+    <main>
+      <div id="list"></div>
+      <div id="resultsList" style="display:none;"></div>
+      <div class="empty" id="emptyState">No events yet. Trigger an action in CometChat and it'll show up here within a couple seconds.</div>
+      <div class="empty" id="resultsEmptyState" style="display:none;">No test run found yet. Run <code>npx playwright test</code> and this will populate.</div>
+    </main>
+  </div>
+</div>
 
 <script>
   const listEl = document.getElementById('list');
@@ -314,27 +348,63 @@
   const statusText = document.getElementById('statusText');
   const autoScroll = document.getElementById('autoScroll');
   const clearBtn = document.getElementById('clearBtn');
+  const sidebarEl = document.getElementById('sidebar');
 
   const openIds = new Set();
   let knownTriggers = new Set();
   let lastRenderKey = '';
 
-  // Category grouping — trigger -> category comes from
+  // Category grouping — trigger -> registry category comes from
   // /trigger-categories.json, generated from src/registry/webhook.registry.ts
   // (see scripts/generate-trigger-categories.ts) so this never has to be
-  // kept in sync by hand.
-  const CATEGORY_ORDER = ['GROUP', 'MESSAGE', 'USER', 'MODERATION', 'CALLS', 'MEETINGS', 'CAMPAIGN', 'OTHER'];
+  // kept in sync by hand. Sidebar labels/grouping match the CometChat
+  // Dashboard's own webhook trigger tabs (Group / Call & Meeting / Message /
+  // Campaign / User / Moderation) — note Call & Meeting merges this
+  // project's two registry categories (CALLS, MEETINGS) into the one tab
+  // CometChat itself shows, since that's a display-only grouping choice.
+  const DISPLAY_CATEGORIES = [
+    { key: 'GROUP', label: 'Group', registryCats: ['GROUP'] },
+    { key: 'CALL_MEETING', label: 'Call & Meeting', registryCats: ['CALLS', 'MEETINGS'] },
+    { key: 'MESSAGE', label: 'Message', registryCats: ['MESSAGE'] },
+    { key: 'CAMPAIGN', label: 'Campaign', registryCats: ['CAMPAIGN'] },
+    { key: 'USER', label: 'User', registryCats: ['USER'] },
+    { key: 'MODERATION', label: 'Moderation', registryCats: ['MODERATION'] },
+  ];
   let triggerCategories = {};
-  const openCategories = new Set(CATEGORY_ORDER);
+  let selectedCategory = ''; // '' = All
 
-  function categoryOf(trigger) {
-    return triggerCategories[trigger] || 'OTHER';
+  function displayCategoryOf(trigger) {
+    const registryCat = triggerCategories[trigger];
+    const found = DISPLAY_CATEGORIES.find((c) => c.registryCats.includes(registryCat));
+    return found ? found.key : 'OTHER';
+  }
+
+  function renderSidebar(events) {
+    const counts = {};
+    for (const e of events) {
+      const key = displayCategoryOf(e.trigger);
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    const total = events.length;
+    const items = [{ key: '', label: 'All', count: total }]
+      .concat(DISPLAY_CATEGORIES.map((c) => ({ key: c.key, label: c.label, count: counts[c.key] || 0 })));
+    if (counts.OTHER) items.push({ key: 'OTHER', label: 'Other', count: counts.OTHER });
+
+    sidebarEl.innerHTML = items
+      .map(
+        (it) => `
+        <button class="sidebar-item ${selectedCategory === it.key ? 'active' : ''}" data-cat="${it.key}">
+          <span>${escapeHtml(it.label)}</span>
+          <span class="sidebar-count">${it.count}</span>
+        </button>`
+      )
+      .join('');
   }
 
   fetch('/trigger-categories.json')
     .then((r) => r.json())
     .then((map) => { triggerCategories = map; lastRenderKey = ''; poll(true); })
-    .catch(() => {}); // categorization is a nice-to-have — events still render fine without it, just all under "OTHER"
+    .catch(() => {}); // categorization is a nice-to-have — events still render fine without it, just all under "Other"
 
   function fmtTime(ms) {
     const d = new Date(ms);
@@ -375,15 +445,62 @@
     return e.receivedAt + ':' + (e.trigger || '');
   }
 
-  function renderEventCard(e) {
+  // Duplicate-delivery detection: fingerprints an event by whatever
+  // identifying field its payload shape actually carries (message id, group
+  // guid, call id, ...) so two *different* real actions of the same trigger
+  // type (extremely common — e.g. many message_sent events in one run)
+  // don't get flagged, only genuine re-deliveries of the *same* underlying
+  // event. user_connection_status_changed is excluded — it fires ambiently
+  // and legitimately repeats for unrelated sessions, not a duplicate signal.
+  function fingerprint(e) {
+    if (e.trigger === 'user_connection_status_changed') return null;
+    const d = e.payload && e.payload.data;
+    if (!d) return null;
+    if (d.message && d.message.id != null) return 'message:' + d.message.id;
+    if (d.group && d.group.guid) return 'group:' + d.group.guid;
+    if (d.call && d.call.id != null) return 'call:' + d.call.id;
+    if (d.body && d.body.messageId != null) return 'receipt:' + d.body.messageId + ':' + d.body.action;
+    if (d.reaction && d.reaction.messageId != null) {
+      return 'reaction:' + d.reaction.messageId + ':' + d.reaction.reaction + ':' + (d.reaction.reactedBy && d.reaction.reactedBy.uid);
+    }
+    if (d.by && d.by.uid && d.users) return 'userstate:' + d.by.uid + ':' + Object.keys(d.users).sort().join(',');
+    return null;
+  }
+
+  function computeDuplicates(events) {
+    const groups = new Map();
+    for (const e of events) {
+      const fp = fingerprint(e);
+      if (fp == null) continue;
+      const key = (e.trigger || '') + '|' + fp;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(e);
+    }
+    const dupInfo = new Map(); // eventId -> { index, count, deltaMs }
+    for (const list of groups.values()) {
+      if (list.length < 2) continue;
+      list.sort((a, b) => a.receivedAt - b.receivedAt);
+      list.forEach((e, i) => {
+        dupInfo.set(eventId(e), { index: i + 1, count: list.length, deltaMs: e.receivedAt - list[0].receivedAt });
+      });
+    }
+    return dupInfo;
+  }
+
+  function renderEventCard(e, dupInfo) {
     const id = eventId(e);
     const open = openIds.has(id);
+    const dup = dupInfo.get(id);
+    const dupBadge = dup
+      ? `<span class="dup-badge" title="Same ${escapeHtml(e.trigger)} event delivered ${dup.count} times (this is delivery ${dup.index}, ${dup.deltaMs}ms after the first) — possible duplicate delivery">⚠ ${dup.index}/${dup.count} duplicate</span>`
+      : '';
     return `
-    <div class="event ${open ? 'open' : ''}" data-id="${id}">
+    <div class="event ${open ? 'open' : ''} ${dup ? 'dup' : ''}" data-id="${id}">
       <div class="event-head" onclick="window.__toggle('${id}')">
         <span class="chevron">▶</span>
         <span class="badge">${escapeHtml(e.trigger || 'unknown')}</span>
         <span class="time">${fmtTime(e.receivedAt)}</span>
+        ${dupBadge}
         <span class="summary">${escapeHtml(summarize(e.payload))}</span>
       </div>
       <div class="event-body">
@@ -396,42 +513,26 @@
   }
 
   function render(events) {
-    const filter = filterEl.value;
-    const filtered = filter ? events.filter((e) => e.trigger === filter) : events;
+    renderSidebar(events);
 
-    countEl.textContent = filtered.length + (filter ? ` of ${events.length}` : '') + ' event' + (events.length === 1 ? '' : 's');
+    const catFiltered = selectedCategory ? events.filter((e) => displayCategoryOf(e.trigger) === selectedCategory) : events;
+    const filter = filterEl.value;
+    const filtered = filter ? catFiltered.filter((e) => e.trigger === filter) : catFiltered;
+
+    countEl.textContent = filtered.length + (filter || selectedCategory ? ` of ${events.length}` : '') + ' event' + (events.length === 1 ? '' : 's');
     emptyEl.style.display = filtered.length ? 'none' : 'block';
 
+    const dupInfo = computeDuplicates(events); // computed over the FULL set — a duplicate delivery is real regardless of which filter is currently applied
+
     const renderKey =
-      filtered.map(eventId).join('|') + '|' + [...openIds].join(',') + '|' + [...openCategories].join(',') + '|' + JSON.stringify(triggerCategories);
+      filtered.map(eventId).join('|') + '|' + [...openIds].join(',') + '|' + selectedCategory + '|' + [...dupInfo.keys()].join(',');
     if (renderKey === lastRenderKey) return;
     lastRenderKey = renderKey;
 
-    // Group newest-first within each category, categories in a fixed,
-    // meaningful order (not alphabetical) — matches the registry's category
-    // grouping so this reads the same way the coverage report does.
-    const byCategory = new Map();
-    for (const e of filtered.slice().reverse()) {
-      const cat = categoryOf(e.trigger);
-      if (!byCategory.has(cat)) byCategory.set(cat, []);
-      byCategory.get(cat).push(e);
-    }
-    const orderedCats = CATEGORY_ORDER.filter((c) => byCategory.has(c));
-
-    listEl.innerHTML = orderedCats
-      .map((cat) => {
-        const catEvents = byCategory.get(cat);
-        const open = openCategories.has(cat);
-        return `
-        <div class="category-section ${open ? 'open' : ''}" data-cat="${cat}">
-          <div class="category-head" onclick="window.__toggleCategory('${cat}')">
-            <span class="chevron">▶</span>
-            <span class="category-name">${escapeHtml(cat)}</span>
-            <span class="category-count">${catEvents.length}</span>
-          </div>
-          <div class="category-events">${catEvents.map(renderEventCard).join('')}</div>
-        </div>`;
-      })
+    listEl.innerHTML = filtered
+      .slice()
+      .reverse()
+      .map((e) => renderEventCard(e, dupInfo))
       .join('');
   }
 
@@ -442,12 +543,14 @@
     poll(true);
   };
 
-  window.__toggleCategory = (cat) => {
-    if (openCategories.has(cat)) openCategories.delete(cat);
-    else openCategories.add(cat);
+  sidebarEl.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('.sidebar-item');
+    if (!btn) return;
+    selectedCategory = btn.dataset.cat;
     lastRenderKey = '';
+    if (activeTab !== 'events') setTab('events');
     poll(true);
-  };
+  });
 
   window.__copy = (json) => {
     navigator.clipboard.writeText(json).catch(() => {});
